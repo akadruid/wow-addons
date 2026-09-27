@@ -347,6 +347,13 @@ function UI:Create()
     local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -10)
 
+    frame.SourceText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.SourceText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -38, -24)
+    frame.SourceText:SetWidth(250)
+    frame.SourceText:SetJustifyH("RIGHT")
+    frame.SourceText:SetWordWrap(false)
+    frame.SourceText:SetTextColor(0.75, 0.75, 0.75)
+
     frame.StatusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.StatusText:SetPoint("TOPLEFT", frame.Title, "BOTTOMLEFT", 0, -8)
     frame.StatusText:SetSize(540, 32)
@@ -504,6 +511,15 @@ function UI:UpdateStatusText()
 
     if roster.state == "NO_GUILD" then
         text = ns.L.STATUS_NO_GUILD
+    elseif roster.state == "NO_CLUB" then
+        text = ns.L.STATUS_NO_CLUB
+        red, green, blue = 1, 0.25, 0.25
+    elseif roster.state == "CLUBS_UNAVAILABLE" then
+        text = ns.L.STATUS_CLUB_UNSUPPORTED
+        red, green, blue = 1, 0.25, 0.25
+    elseif roster.state == "LOCKDOWN" then
+        text = ns.L.STATUS_CLUB_LOCKED
+        red, green, blue = 1, 0.25, 0.25
     elseif roster.state == "UNSUPPORTED" then
         text = ns.L.STATUS_UNSUPPORTED
     elseif groupState.inRaid then
@@ -517,6 +533,9 @@ function UI:UpdateStatusText()
         red, green, blue = 1, 0.25, 0.25
     elseif groupState.isSending then
         text = ns.L.STATUS_SENDING
+    elseif roster.sourceKind == "club" then
+        text = string.format(ns.L.STATUS_CLUB_ONLINE, #roster:GetMembers(), roster.totalCount)
+        red, green, blue = 0.25, 1, 0.25
     else
         text = string.format(ns.L.STATUS_ONLINE, #roster:GetMembers(), roster.onlineCount)
         red, green, blue = 0.25, 1, 0.25
@@ -606,10 +625,22 @@ function UI:UpdateFirstInviteButton(groupState)
     self:UpdateQuickBar()
 end
 
+function UI:UpdateSourceHeader()
+    if not self.frame or not self.frame.SourceText then
+        return
+    end
+
+    local isCommunity = ns.Roster:IsCommunitySource()
+    self.frame.Title:SetText(isCommunity and ns.L.TITLE_SOURCE_COMMUNITY or ns.L.TITLE_GUILD)
+    self.frame.SourceText:SetText(string.format(ns.L.SOURCE_LABEL, ns.Roster:GetSourceLabel()))
+end
+
 function UI:Refresh()
     if not self.frame then
         return
     end
+
+    self:UpdateSourceHeader()
 
     local memberLookup = {}
     for _, member in ipairs(ns.Roster:GetMembers()) do
@@ -669,10 +700,13 @@ function UI:InviteSelected()
         ns.Addon:Print(ns.L.ERROR_SENDING)
         return
     end
-    if not IsInGuild() then
-        ns.Addon:Print(ns.L.ERROR_NOT_IN_GUILD)
+
+    local sourceBlockReason = ns.Roster:GetSourceBlockReason()
+    if sourceBlockReason then
+        ns.Addon:Print(sourceBlockReason)
         return
     end
+
     if groupState.inRaid then
         ns.Addon:Print(ns.L.ERROR_IN_RAID)
         return
@@ -713,10 +747,13 @@ function UI:InviteFirstMember()
         ns.Addon:Print(ns.L.ERROR_SENDING)
         return
     end
-    if not IsInGuild() then
-        ns.Addon:Print(ns.L.ERROR_NOT_IN_GUILD)
+
+    local sourceBlockReason = ns.Roster:GetSourceBlockReason()
+    if sourceBlockReason then
+        ns.Addon:Print(sourceBlockReason)
         return
     end
+
     if groupState.inRaid then
         ns.Addon:Print(ns.L.ERROR_IN_RAID)
         return

@@ -188,7 +188,54 @@ local memberInfo = C_Club.GetMemberInfo(clubId, memberId)
 
 但当前生成文档把 `C_Club.GetClubMembers`、`C_Club.GetMemberInfo` 和 `C_Club.GetMemberInfoForSelf` 标记为 `SecretInChatMessagingLockdown = true`。这意味着在地下城、团队副本、遭遇战、史诗钥石或 PvP 等限制状态下，返回数据可能变成秘密值，普通插件不能可靠地迭代、比较或再次传递给 API。
 
-传统公会名册接口当前仍然存在，且不带有这些秘密值限制，因此第一版优先使用它。后续如果需要支持超过 500 人的大型公会，可以增加 `C_Club` 数据源，并仅在数据可访问时启用。
+传统公会名册接口当前仍然存在，且不带有这些秘密值限制，因此“当前角色公会”来源继续使用它。`C_Club` 只用于“角色社区”来源，细节见下面的社区邀请来源一节。
+
+## 社区（C_Club）邀请来源
+
+调研日期：2026-09-27（Asia/Shanghai）
+
+依据 `Gethe/wow-ui-source` 的 `live` 分支：`Blizzard_APIDocumentationGenerated/ClubDocumentation.lua`、`Blizzard_Communities/CommunitiesMemberList.lua`、`Blizzard_UnitPopup/Standard/UnitPopupMenus.lua`、`Blizzard_UnitPopupShared/UnitPopupSharedMenus.lua`、`Blizzard_FrameXMLUtil/CommunitiesUtil.lua`。
+
+### 接口
+
+| 用途 | 接口 | 说明 |
+| --- | --- | --- |
+| 列出已加入的社区 | `C_Club.GetSubscribedClubs()` | 返回 `ClubInfo` 表，含 `clubId`、`name`、`clubType`、`memberCount` |
+| 读取社区成员 | `C_Club.GetClubMembers(clubId[, streamId])` | 不传 `streamId` 时返回整个社区的成员 ID |
+| 读取成员详情 | `C_Club.GetMemberInfo(clubId, memberId)` | 返回 `ClubMemberInfo` |
+| 判断数据是否就绪 | `INITIAL_CLUBS_LOADED` | 该事件之前社区数据不可用 |
+| 成员变化 | `CLUB_MEMBER_ADDED / REMOVED / UPDATED`、`CLUB_MEMBER_PRESENCE_UPDATED`、`CLUB_MEMBERS_UPDATED` | 用来刷新名册 |
+
+本插件用到的 `ClubMemberInfo` 字段：
+
+```text
+name（角色名，可能带服务器）、classID、level、zone、presence、role、guid、isSelf
+```
+
+`Enum.ClubMemberPresence`：`Unknown 0 / Online 1 / OnlineMobile 2 / Offline 3 / Away 4 / Busy 5`。
+
+`Enum.ClubType`：`BattleNet 0 / Character 1 / Guild 2 / Other 3`。
+
+在线状态映射到与公会来源相同的状态码：`Online → 在线`、`Away → 暂离`、`Busy → 忙碌`、`OnlineMobile → 手机在线`；`Offline` 与 `Unknown` 不计入可邀请列表。
+
+### 为什么只支持角色社区
+
+暴雪的右键菜单把社区成员分成两套：
+
+- 角色社区（`Enum.ClubType.Character`）成员使用 `COMMUNITIES_WOW_MEMBER` 菜单，其中包含“邀请加入队伍”子菜单，最终执行 `C_PartyInfo.InviteUnit(memberInfo.name)`。
+- 战网社区（`Enum.ClubType.BattleNet`）成员使用 `COMMUNITIES_MEMBER` 菜单，整份菜单没有任何队伍邀请项，只有“添加战网好友”。也就是说客户端本身不提供从战网社区直接邀请队伍的能力。
+
+因此可选来源只列出 `clubType == Character` 的社区。`InviteUnit` 的入参就是暴雪菜单里 `contextData.name` 使用的同一个 `memberInfo.name`，与官方行为保持一致。
+
+### 秘密值限制
+
+`GetSubscribedClubs`、`GetClubMembers`、`GetMemberInfo` 在生成文档里都带 `SecretInChatMessagingLockdown = true`。在地下城、团本、PvP、史诗钥石等聊天限制状态下，返回值可能变成秘密值，插件无法可靠迭代。
+
+处理方式：调用前检查 `C_ChatInfo.InChatMessagingLockdown()`，为真时跳过刷新并显示“当前无法读取该社区的成员数据”，不会误报空名单；所有 `C_Club` 调用都包在 `pcall` 里。
+
+### 公会来源不变
+
+选择“当前角色公会”时仍然使用 `GetNumGuildMembers` / `GetGuildRosterInfo`，因为传统接口不受秘密值限制，而且能直接拿到职位、等级和区域。
 
 ## 实现边界
 

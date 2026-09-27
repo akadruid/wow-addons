@@ -85,6 +85,101 @@ local panel = CreateFrame("Frame", "AzerothAssistantOptionsPanel", UIParent)
 panel.name = ns.L.SETTINGS_TITLE
 
 local toggles = {}
+local sourceDropdown
+
+local function FormatSourceText(name, sourceType)
+    if type(name) == "string" and name ~= "" then
+        return string.format(ns.L.SOURCE_NAME_FORMAT, name, sourceType)
+    end
+
+    return nil
+end
+
+local function GetSourceOptions()
+    local options = {
+        { value = "guild", text = ns.Roster:GetGuildSourceLabel() },
+    }
+
+    for _, community in ipairs(ns.Roster:GetAvailableCommunities()) do
+        options[#options + 1] = {
+            value = "club:" .. community.clubId,
+            text = FormatSourceText(community.name, ns.L.SOURCE_TYPE_COMMUNITY) or community.name,
+        }
+    end
+
+    return options
+end
+
+local function GetCurrentSourceValue()
+    local kind, clubId = ns.Roster:GetSource()
+    if kind == "club" and clubId then
+        return "club:" .. clubId
+    end
+
+    return "guild"
+end
+
+local function GetCurrentSourceText()
+    local value = GetCurrentSourceValue()
+
+    for _, option in ipairs(GetSourceOptions()) do
+        if option.value == value then
+            return option.text
+        end
+    end
+
+    -- 选中的社区已经不在订阅列表里时，仍然显示一次它的名字。
+    if value ~= "guild" then
+        local label = ns.Roster:GetSourceLabel()
+        if type(label) == "string" and label ~= "" then
+            return label
+        end
+    end
+
+    return ns.Roster:GetGuildSourceLabel()
+end
+
+local function ApplySourceValue(value)
+    if type(value) == "string" and string.sub(value, 1, 5) == "club:" then
+        ns.Roster:SetSource("club", string.sub(value, 6))
+    else
+        ns.Roster:SetSource("guild")
+    end
+
+    ns.Addon:RefreshAll(true)
+    ns.Addon:Print(string.format(ns.L.NOTIFY_SOURCE_CHANGED, ns.Roster:GetSourceLabel()))
+end
+
+local function CreateSourceRow(y)
+    local label = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, y)
+    label:SetText(ns.L.SETTINGS_INVITE_SOURCE)
+
+    local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hint:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+    hint:SetWidth(520)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(ns.L.SETTINGS_INVITE_SOURCE_HINT)
+    hint:SetTextColor(0.62, 0.62, 0.62)
+
+    local dropdown = CreateFrame("Frame", "AzerothAssistantSourceDropdown", panel, "UIDropDownMenuTemplate")
+    dropdown:SetPoint("LEFT", label, "RIGHT", -8, 0)
+    UIDropDownMenu_SetWidth(dropdown, 220)
+    UIDropDownMenu_Initialize(dropdown, function(_, level)
+        for _, option in ipairs(GetSourceOptions()) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = option.text
+            info.value = option.value
+            info.checked = (UIDropDownMenu_GetSelectedValue(dropdown) == option.value)
+            info.func = function()
+                ApplySourceValue(option.value)
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end, "MENU")
+
+    sourceDropdown = dropdown
+end
 
 local function CreateModuleToggle(key, label, hint, y)
     local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
@@ -115,6 +210,11 @@ function Config:RefreshPanel()
     for _, check in ipairs(toggles) do
         check:SetChecked(self:IsEnabled(check.moduleKey))
     end
+
+    if sourceDropdown then
+        UIDropDownMenu_SetSelectedValue(sourceDropdown, GetCurrentSourceValue())
+        UIDropDownMenu_SetText(sourceDropdown, GetCurrentSourceText())
+    end
 end
 
 local function BuildPanel()
@@ -134,7 +234,9 @@ local function BuildPanel()
 
     local y = -62
     CreateModuleToggle("guildInvite", ns.L.SETTINGS_GUILD_INVITE, ns.L.SETTINGS_GUILD_INVITE_HINT, y)
-    y = y - 54
+    y = y - 62
+    CreateSourceRow(y)
+    y = y - 56
     CreateModuleToggle("runestone", ns.L.SETTINGS_RUNESTONE, ns.L.SETTINGS_RUNESTONE_HINT, y)
     y = y - 54
     CreateModuleToggle("autoHunt", ns.L.SETTINGS_AUTO_HUNT, ns.L.SETTINGS_AUTO_HUNT_HINT, y)

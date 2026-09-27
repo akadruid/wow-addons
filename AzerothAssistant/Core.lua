@@ -3,6 +3,19 @@ local ADDON_NAME, ns = ...
 local Addon = CreateFrame("Frame")
 ns.Addon = Addon
 
+-- 社区（C_Club）相关事件。INITIAL_CLUBS_LOADED 表示社区数据已经可用。
+local CLUB_EVENTS = {
+    "INITIAL_CLUBS_LOADED",
+    "CLUB_ADDED",
+    "CLUB_REMOVED",
+    "CLUB_MEMBER_ADDED",
+    "CLUB_MEMBER_REMOVED",
+    "CLUB_MEMBER_UPDATED",
+    "CLUB_MEMBER_ROLE_UPDATED",
+    "CLUB_MEMBER_PRESENCE_UPDATED",
+    "CLUB_MEMBERS_UPDATED",
+}
+
 function Addon:Print(message)
     local text = "|cff33ff99" .. ns.L.ADDON_NAME .. "|r: " .. tostring(message)
     local printed = false
@@ -46,6 +59,26 @@ function Addon:ScheduleRunestoneAutoCheck()
     end)
 end
 
+function Addon:RegisterClubEvents()
+    for _, event in ipairs(CLUB_EVENTS) do
+        -- 这些事件在正式服都存在；用 pcall 兜底，避免客户端差异直接中断加载。
+        pcall(self.RegisterEvent, self, event)
+    end
+end
+
+-- 社区事件会批量触发，例如逐个成员推送在线状态；这里合并成一次刷新。
+function Addon:ScheduleClubRefresh()
+    if self.clubRefreshPending then
+        return
+    end
+
+    self.clubRefreshPending = true
+    C_Timer.After(0.5, function()
+        self.clubRefreshPending = false
+        self:RefreshAll(false)
+    end)
+end
+
 function Addon:LeavePartyWithoutConfirmation()
     if IsInRaid() then
         self:Print(ns.L.LEAVE_PARTY_RAID_BLOCKED)
@@ -84,6 +117,7 @@ function Addon:OnAddonLoaded(name)
     self:RegisterEvent("GOSSIP_SHOW")
     self:RegisterEvent("GOSSIP_CLOSED")
     self:RegisterEvent("QUEST_GREETING")
+    self:RegisterClubEvents()
 
     ns.UI:Create()
     ns.MeetingStoneFavorites:Initialize()
@@ -126,6 +160,15 @@ function Addon:OnAddonLoaded(name)
             ns.Talk.SetEnabled(false)
         elseif command == "talk list" then
             ns.Talk.PrintRules()
+        elseif command == "source" or command == "source list" then
+            ns.Roster:PrintSources()
+        elseif string.sub(command, 1, 7) == "source " then
+            if ns.Roster:SetSourceByToken(string.sub(command, 8)) then
+                self:RefreshAll(true)
+                self:Print(string.format(ns.L.NOTIFY_SOURCE_CHANGED, ns.Roster:GetSourceLabel()))
+            else
+                self:Print(ns.L.SOURCE_INVALID)
+            end
         elseif command == "stone" or command == "meetingstone" then
             ns.MeetingStoneFavorites:ToggleUI()
         elseif command == "stone on" then
@@ -206,6 +249,10 @@ function Addon:OnEvent(event, ...)
         ns.Talk.OnGossipClosed()
     elseif event == "QUEST_GREETING" then
         ns.Talk.OnQuestGreeting()
+    elseif event == "INITIAL_CLUBS_LOADED" then
+        self:RefreshAll(true)
+    elseif string.sub(event, 1, 5) == "CLUB_" then
+        self:ScheduleClubRefresh()
     end
 end
 
