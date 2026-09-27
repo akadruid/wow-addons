@@ -1,0 +1,11 @@
+# 打包分享用的压缩包
+*.zip
+*.rar
+*.7z
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+*.bak
+Thumbs.db
+.DS_Store

@@ -1,0 +1,8 @@
+<Bindings>
+    <Binding name="AZEROTHASSISTANT_RANDOM_INVITE" category="BINDING_HEADER_AZEROTHASSISTANT">
+        AzerothAssistantInviteButton:Click()
+    </Binding>
+    <Binding name="AZEROTHASSISTANT_LEAVE_PARTY" category="BINDING_HEADER_AZEROTHASSISTANT">
+        AzerothAssistantLeavePartyButton:Click()
+    </Binding>
+</Bindings>

@@ -1,0 +1,5 @@
+# 统一用 LF 保存，避免不同编辑器产生的换行差异
+*.lua text eol=lf
+*.toc text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
