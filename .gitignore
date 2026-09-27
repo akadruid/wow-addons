@@ -9,3 +9,7 @@
 *.bak
 Thumbs.db
 .DS_Store
+
+# 本机维护记录：只保留在本地，不发布
+/AGENTS.md
+/docs/git-workflow.md
