@@ -3,7 +3,7 @@
 ## Title-zhCN: 艾泽拉斯助手
 ## Notes: Personal utility addon for World of Warcraft.
 ## Notes-zhCN: 用于处理日常查询和组队操作的个人助手。
-## Author: Codex
+## Author: akadruid
 ## Version: 0.9.4
 ## SavedVariables: AzerothAssistantDB, GuildPartyInviterDB
 ## X-Category: Utility
