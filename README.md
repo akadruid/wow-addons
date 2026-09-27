@@ -4,6 +4,8 @@
 
 面向《魔兽世界》正式服的私人多功能插件。当前包含公会小队邀请与地图事件状态查询，后续继续在同一条快捷栏中扩展其他功能。
 
+作者：[akadruid](https://github.com/akadruid) · 仓库：[akadruid/wow-addons](https://github.com/akadruid/wow-addons) · 许可：[MIT](LICENSE)
+
 当前开发基线：
 
 - 正式服 `12.1.0 (69814)`
