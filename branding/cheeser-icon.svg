@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="cheese" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset="1" stop-color="#F0A52C"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M256 56 L84 332 Q256 444 428 332 Z"
+        fill="url(#cheese)" stroke="#C57C1B" stroke-width="10" stroke-linejoin="round"/>
+
+  <path d="M84 332 Q256 444 428 332"
+        fill="none" stroke="#B97818" stroke-width="24" stroke-linecap="round"/>
+
+  <g fill="#C57C1B">
+    <ellipse cx="180" cy="196" rx="30" ry="24" transform="rotate(-15 180 196)"/>
+    <ellipse cx="334" cy="184" rx="27" ry="22" transform="rotate(14 334 184)"/>
+    <ellipse cx="256" cy="272" rx="32" ry="26" transform="rotate(-6 256 272)"/>
+    <ellipse cx="150" cy="294" rx="19" ry="16" transform="rotate(22 150 294)"/>
+    <ellipse cx="362" cy="288" rx="20" ry="17" transform="rotate(-24 362 288)"/>
+  </g>
+</svg>

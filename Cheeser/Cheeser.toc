@@ -7,6 +7,7 @@
 ## Version: 1.0.0
 ## SavedVariables: CheeserDB
 ## X-Category: Utility
+## IconTexture: Interface\AddOns\Cheeser\Cheeser.tga
 
 Locales.lua
 Config.lua
