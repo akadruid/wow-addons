@@ -15,7 +15,6 @@ local ATTEMPT_DELAYS = { 0, 0.3, 0.9, 1.8 }
 local RULES = {
     {
         key = "huntPreyChoice",
-        titleKey = "TALK_RULE_HUNT_PREY",
         questID = 91277,
         steps = {
             { optionID = 134312, match = "我要自己挑选猎物" },
@@ -104,14 +103,6 @@ local function FindOption(options, step)
     end
 
     return nil
-end
-
-local function GetRuleTitle(rule)
-    local title = ns.L[rule.titleKey or ""]
-    if rule.questID then
-        return string.format("%s (%d)", tostring(title), rule.questID)
-    end
-    return tostring(title)
 end
 
 -- 用 upvalue 里的 Talk 调用，避免任何调用方忘记传 self 时直接报错。
@@ -288,30 +279,4 @@ function Talk.Initialize()
     Talk.ResetSession()
     Talk.ResetChain()
     EnsureOptionHook()
-end
-
-function Talk.PrintStatus()
-    local state = Talk.IsEnabled() and ns.L.ON or ns.L.OFF
-    ns.Addon:Print(string.format(ns.L.TALK_STATUS, state))
-    ns.Addon:Print(ns.L.TALK_SHIFT_HINT)
-end
-
-function Talk.PrintRules()
-    ns.Addon:Print(ns.L.TALK_LIST_HEADER)
-
-    if #RULES == 0 then
-        ns.Addon:Print(ns.L.TALK_LIST_EMPTY)
-        return
-    end
-
-    for _, rule in ipairs(RULES) do
-        for index, step in ipairs(rule.steps) do
-            ns.Addon:Print(string.format(
-                ns.L.TALK_LIST_LINE,
-                GetRuleTitle(rule),
-                index,
-                tostring(step.match)
-            ))
-        end
-    end
 end

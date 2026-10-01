@@ -267,73 +267,6 @@ function Roster:FindCommunity(clubId)
     return nil
 end
 
-function Roster:PrintSources()
-    local communities = self:GetAvailableCommunities()
-
-    ns.Addon:Print(ns.L.SOURCE_LIST_HEADER)
-    ns.Addon:Print(string.format(ns.L.SOURCE_LIST_GUILD, 1, self:GetGuildSourceLabel()))
-
-    for index, community in ipairs(communities) do
-        ns.Addon:Print(string.format(
-            ns.L.SOURCE_LIST_LINE,
-            index + 1,
-            FormatSourceLabel(community.name, ns.L.SOURCE_TYPE_COMMUNITY) or community.name,
-            community.clubId
-        ))
-    end
-
-    ns.Addon:Print(string.format(ns.L.SOURCE_CURRENT, self:GetSourceLabel()))
-    ns.Addon:Print(ns.L.SOURCE_USAGE)
-end
-
--- token 支持 guild、列表序号（1 为公会）或社区名称（支持部分匹配）。
-function Roster:SetSourceByToken(token)
-    token = string.match(token or "", "^%s*(.-)%s*$") or ""
-    local lowered = string.lower(token)
-
-    if lowered == "" or lowered == "guild" then
-        return self:SetSource("guild")
-    end
-
-    local guildName = GetCurrentGuildName()
-    if guildName and string.lower(guildName) == lowered then
-        return self:SetSource("guild")
-    end
-
-    local communities = self:GetAvailableCommunities()
-    local target
-
-    local index = tonumber(token)
-    if index then
-        if index == 1 then
-            return self:SetSource("guild")
-        end
-        target = communities[index - 1]
-    else
-        for _, community in ipairs(communities) do
-            if string.lower(community.name) == lowered or community.clubId == token then
-                target = community
-                break
-            end
-        end
-
-        if not target then
-            for _, community in ipairs(communities) do
-                if string.find(string.lower(community.name), lowered, 1, true) then
-                    target = community
-                    break
-                end
-            end
-        end
-    end
-
-    if not target then
-        return false
-    end
-
-    return self:SetSource("club", target.clubId)
-end
-
 -- ===== 名册读取 =====
 
 function Roster:RequestUpdate()
@@ -580,6 +513,32 @@ function Roster:GetFirstEligibleMember()
     return nil
 end
 
+-- 邀请跨服（连接服）公会成员时，短名可能触发“无法邀请该服务器的玩家”。
+-- 用 GUID 取回完整“角色名-服务器”再邀请，和 EllesmereUI / MRT 的做法一致。
+local function BuildInviteName(member)
+    local name = member and member.name
+    if not name or name == "" then
+        return nil
+    end
+
+    local guid = member.guid
+    if guid and GetPlayerInfoByGUID then
+        local ok, _, _, _, _, _, infoName, realm = pcall(GetPlayerInfoByGUID, guid)
+        if ok
+            and type(infoName) == "string" and infoName ~= ""
+            and not (issecretvalue and issecretvalue(infoName)) then
+            local base = string.match(infoName, "^[^%-]+") or infoName
+            if type(realm) == "string" and realm ~= ""
+                and not (issecretvalue and issecretvalue(realm)) then
+                return base .. "-" .. realm:gsub("%s+", "")
+            end
+            return base
+        end
+    end
+
+    return name
+end
+
 local function SendNextInvite()
     if #inviteQueue == 0 then
         Roster.isSending = false
@@ -604,7 +563,7 @@ local function SendNextInvite()
         return
     end
 
-    InviteUnit(member.name)
+    InviteUnit(BuildInviteName(member) or member.name)
     ns.Addon:Print(string.format(ns.L.NOTIFY_INVITE_SENT, member.name))
 
     if ns.UI then

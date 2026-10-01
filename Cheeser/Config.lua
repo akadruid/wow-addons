@@ -7,6 +7,7 @@ local DEFAULTS = {
     guildInvite = true,
     runestone = true,
     autoHunt = true,
+    runestoneAnnounce = true,
 }
 
 local function IsKnownKey(key)
@@ -81,8 +82,58 @@ function Config:Apply()
     self:RefreshPanel()
 end
 
-local panel = CreateFrame("Frame", "AzerothAssistantOptionsPanel", UIParent)
+local panel = CreateFrame("Frame", "CheeserOptionsPanel", UIParent)
 panel.name = ns.L.SETTINGS_TITLE
+
+local scroll = CreateFrame("ScrollFrame", nil, panel)
+scroll:SetPoint("TOPLEFT")
+scroll:SetPoint("BOTTOMRIGHT", -14, 0)
+scroll:EnableMouseWheel(true)
+
+local page = CreateFrame("Frame", nil, scroll)
+page:SetSize(600, 600)
+scroll:SetScrollChild(page)
+
+local barTrack = panel:CreateTexture(nil, "ARTWORK")
+barTrack:SetPoint("TOPRIGHT", -6, -8)
+barTrack:SetPoint("BOTTOMRIGHT", -6, 8)
+barTrack:SetWidth(4)
+barTrack:SetColorTexture(1, 1, 1, 0.08)
+
+local barThumb = panel:CreateTexture(nil, "OVERLAY")
+barThumb:SetWidth(4)
+barThumb:SetColorTexture(1, 0.82, 0, 0.5)
+
+local function paintScrollBar()
+    local range = scroll:GetVerticalScrollRange()
+    local view = scroll:GetHeight()
+    if range < 1 or view < 1 then
+        barTrack:Hide()
+        barThumb:Hide()
+        return
+    end
+
+    barTrack:Show()
+    barThumb:Show()
+
+    local barH = barTrack:GetHeight()
+    local thumb = math.max(24, barH * view / (view + range))
+    barThumb:ClearAllPoints()
+    barThumb:SetHeight(thumb)
+    barThumb:SetPoint("TOP", barTrack, "TOP", 0, -(barH - thumb) * scroll:GetVerticalScroll() / range)
+end
+
+scroll:SetScript("OnMouseWheel", function(self, delta)
+    local range = self:GetVerticalScrollRange()
+    local value = self:GetVerticalScroll() - delta * 40
+    self:SetVerticalScroll(math.min(math.max(value, 0), range))
+    paintScrollBar()
+end)
+
+scroll:SetScript("OnSizeChanged", function(self)
+    page:SetWidth(self:GetWidth())
+    paintScrollBar()
+end)
 
 local toggles = {}
 local sourceDropdown
@@ -148,21 +199,22 @@ local function ApplySourceValue(value)
 
     ns.Addon:RefreshAll(true)
     ns.Addon:Print(string.format(ns.L.NOTIFY_SOURCE_CHANGED, ns.Roster:GetSourceLabel()))
+    Config:RefreshPanel()
 end
 
 local function CreateSourceRow(y)
-    local label = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, y)
+    local label = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
     label:SetText(ns.L.SETTINGS_INVITE_SOURCE)
 
-    local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     hint:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
     hint:SetWidth(520)
     hint:SetJustifyH("LEFT")
     hint:SetText(ns.L.SETTINGS_INVITE_SOURCE_HINT)
     hint:SetTextColor(0.62, 0.62, 0.62)
 
-    local dropdown = CreateFrame("Frame", "AzerothAssistantSourceDropdown", panel, "UIDropDownMenuTemplate")
+    local dropdown = CreateFrame("Frame", "CheeserSourceDropdown", page, "UIDropDownMenuTemplate")
     dropdown:SetPoint("LEFT", label, "RIGHT", -8, 0)
     UIDropDownMenu_SetWidth(dropdown, 220)
     UIDropDownMenu_Initialize(dropdown, function(_, level)
@@ -182,16 +234,16 @@ local function CreateSourceRow(y)
 end
 
 local function CreateModuleToggle(key, label, hint, y)
-    local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    local check = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
     check:SetSize(26, 26)
-    check:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, y)
+    check:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
     check.moduleKey = key
 
     check.Label = check:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     check.Label:SetPoint("LEFT", check, "RIGHT", 6, 0)
     check.Label:SetText(label)
 
-    check.Hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    check.Hint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     check.Hint:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 30, -2)
     check.Hint:SetWidth(520)
     check.Hint:SetJustifyH("LEFT")
@@ -217,41 +269,90 @@ function Config:RefreshPanel()
     end
 end
 
+local function CreateSeparator(parent, y)
+    local line = parent:CreateTexture(nil, "OVERLAY")
+    line:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, y)
+    line:SetSize(520, 1)
+    line:SetColorTexture(0.45, 0.45, 0.45, 0.55)
+end
+
+local function CreateSectionLabel(parent, text, y)
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, y)
+    label:SetText(text)
+    label:SetTextColor(0.9, 0.82, 0.35)
+    return label
+end
+
 local function BuildPanel()
     if panel.built then
         return
     end
     panel.built = true
 
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
     title:SetText(ns.L.SETTINGS_TITLE)
 
-    local subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local subtitle = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
     subtitle:SetText(ns.L.SETTINGS_SUBTITLE)
     subtitle:SetTextColor(0.7, 0.7, 0.7)
 
     local y = -62
+
+    -- 公会 / 社区邀请助手
     CreateModuleToggle("guildInvite", ns.L.SETTINGS_GUILD_INVITE, ns.L.SETTINGS_GUILD_INVITE_HINT, y)
     y = y - 62
     CreateSourceRow(y)
-    y = y - 56
+    y = y - 52
+    CreateSeparator(page, y)
+    y = y - 20
+
+    -- 符文石助手
     CreateModuleToggle("runestone", ns.L.SETTINGS_RUNESTONE, ns.L.SETTINGS_RUNESTONE_HINT, y)
     y = y - 54
-    CreateModuleToggle("autoHunt", ns.L.SETTINGS_AUTO_HUNT, ns.L.SETTINGS_AUTO_HUNT_HINT, y)
-    y = y - 46
+    CreateModuleToggle("runestoneAnnounce", ns.L.SETTINGS_RUNESTONE_ANNOUNCE, ns.L.SETTINGS_RUNESTONE_ANNOUNCE_HINT, y)
+    y = y - 50
+    CreateSeparator(page, y)
+    y = y - 20
 
-    local openButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    openButton:SetSize(190, 24)
-    openButton:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, y)
-    openButton:SetText(ns.L.SETTINGS_OPEN_INVITE_WINDOW)
-    openButton:SetScript("OnClick", function()
-        if not Config:IsEnabled("guildInvite") then
-            Config:SetEnabled("guildInvite", true)
+    -- 自动蛇岛梦魇狩猎
+    CreateModuleToggle("autoHunt", ns.L.SETTINGS_AUTO_HUNT, ns.L.SETTINGS_AUTO_HUNT_HINT, y)
+    y = y - 54
+    CreateSeparator(page, y)
+    y = y - 20
+
+    -- 集合石最近搜索收藏
+    CreateSectionLabel(page, ns.L.SETTINGS_MEETINGSTONE_GROUP, y)
+    y = y - 30
+    local stoneOpenButton = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    stoneOpenButton:SetSize(190, 24)
+    stoneOpenButton:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    stoneOpenButton:SetText(ns.L.SETTINGS_MEETINGSTONE_OPEN)
+    stoneOpenButton:SetScript("OnClick", function()
+        if ns.MeetingStoneFavorites then
+            ns.MeetingStoneFavorites:ToggleUI()
         end
-        ns.UI:Toggle()
     end)
+
+    -- 常用命令说明
+    y = y - 40
+    CreateSeparator(page, y)
+    y = y - 20
+    CreateSectionLabel(page, ns.L.SETTINGS_COMMANDS_TITLE, y)
+    y = y - 24
+    local commandsText = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    commandsText:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    commandsText:SetJustifyH("LEFT")
+    commandsText:SetJustifyV("TOP")
+    commandsText:SetWidth(520)
+    commandsText:SetSpacing(4)
+    commandsText:SetText(ns.L.SETTINGS_COMMANDS_TEXT)
+    commandsText:SetTextColor(0.75, 0.75, 0.75)
+
+    page:SetHeight(math.abs(y) + 140)
+    paintScrollBar()
 end
 
 -- 面板内容在第一次显示时才创建，避免设置页没打开过就先渲染。

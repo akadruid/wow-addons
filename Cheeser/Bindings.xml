@@ -1,0 +1,8 @@
+<Bindings>
+    <Binding name="CHEESER_RANDOM_INVITE" category="BINDING_HEADER_CHEESER">
+        CheeserInviteButton:Click()
+    </Binding>
+    <Binding name="CHEESER_LEAVE_PARTY" category="BINDING_HEADER_CHEESER">
+        CheeserLeavePartyButton:Click()
+    </Binding>
+</Bindings>

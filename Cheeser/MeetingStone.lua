@@ -10,7 +10,7 @@ local Favorites = {
 ns.MeetingStoneFavorites = Favorites
 
 local DEFAULT_FAVORITES = {
-    "3-78-676-0", -- Firelands (Normal)
+    "1-397-1943-0", -- Eversong Woods (永歌森林)
 }
 
 local MAX_VISIBLE_FAVORITES = 8
@@ -374,7 +374,7 @@ function Favorites:CreateUI()
         return
     end
 
-    local frame = CreateFrame("Frame", "AzerothAssistantMeetingStoneFrame", UIParent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", "CheeserMeetingStoneFrame", UIParent, "BackdropTemplate")
     self.frame = frame
     frame:SetSize(480, 410)
     frame:SetPoint("CENTER")
@@ -457,7 +457,7 @@ function Favorites:CreateUI()
     end)
 
     if UISpecialFrames then
-        UISpecialFrames[#UISpecialFrames + 1] = "AzerothAssistantMeetingStoneFrame"
+        UISpecialFrames[#UISpecialFrames + 1] = "CheeserMeetingStoneFrame"
     end
 
     frame:Hide()

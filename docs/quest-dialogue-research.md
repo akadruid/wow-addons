@@ -91,7 +91,7 @@ rules = {
 
 - 采集入口：在 `GossipOptionButtonMixin.Setup` 上 `hooksecurefunc`，给每个选项行加 ID 文本和 "+" 图标（做法与 ExwindTools 一致）。
 - 配置入口：沿用现有 `UI.lua` 的窗口风格，加一个"任务对话"区块，列出规则并支持启用 / 停用 / 删除。
-- 命令：`/aa talk add <optionID> [questID]`、`/aa talk list`、`/aa talk remove <index>`、`/aa talk on`、`/aa talk off`。
+- 命令：`/che talk add <optionID> [questID]`、`/che talk list`、`/che talk remove <index>`、`/che talk on`、`/che talk off`。
 
 ### 默认安全策略
 
@@ -125,7 +125,7 @@ rules = {
 
 ## 七、落地建议
 
-1. 先实现通用模块：规则表 + 选项 ID 采集界面 + `/aa talk` 命令。
+1. 先实现通用模块：规则表 + 选项 ID 采集界面 + `/che talk` 命令。
 2. 用目标任务的真实数据加第一条预设，并在游戏内实测。
 3. 如果确实需要，再把"自动接取 / 自动交付任务"合并进同一模块。
 
@@ -175,7 +175,7 @@ rules = {
 ### 判断标准
 
 - 如果需求是"只要和这个 NPC 对话就固定选这一项"，路径一或路径二直接够用，不需要写代码。
-- 如果需求是"任务没接时不要自动选""任务交完就自动停止""只有接了任务 A 时才对选项 B 生效"，三个本地插件都做不到，需要在 `AzerothAssistant` 里新增模块（规则表 + 选项 ID 采集 UI，约 100~200 行）。
+- 如果需求是"任务没接时不要自动选""任务交完就自动停止""只有接了任务 A 时才对选项 B 生效"，三个本地插件都做不到，需要在 `Cheeser` 里新增模块（规则表 + 选项 ID 采集 UI，约 100~200 行）。
 
 ## 十、目标任务落地：狩猎：择优猎杀
 
@@ -202,14 +202,14 @@ rules = {
 
 ### 实现
 
-- 新增模块 `AzerothAssistant/Talk.lua`。
+- 新增模块 `Cheeser/Talk.lua`。
 - 监听 `GOSSIP_SHOW` 与 `GOSSIP_CLOSED`，另外在 `GossipOptionButtonMixin.Setup` 上挂 `hooksecurefunc`，覆盖"选项变化但不重新触发 GOSSIP_SHOW"的情况。
 - 规则表 `RULES` 保存任务 ID 与步骤关键词，按顺序匹配 `C_GossipInfo.GetOptions()` 返回的选项文本；文本先去掉颜色/材质标记并压缩空白。
 - 第一步使用完整句子触发；第二到第四步要求"任务 `91277` 在任务日志中"或"仍处在同一次自动选择链条内（30 秒）"，避免短关键词在别的对话里误选。
 - 命中后调用 `C_GossipInfo.SelectOption(gossipOptionID)`，拿不到 ID 时退回 `SelectOptionByIndex(orderIndex)`。
 - 同一份选项列表只处理一次；每条对话链最多连续自动选择 10 次。
 - 对话时按住 `Shift` 跳过自动选择。
-- 命令：`/aa talk`、`/aa talk on`、`/aa talk off`、`/aa talk list`。
+- 命令：`/che talk`（开关自动选择）。
 - 游戏内实测确认：四步分别对应对话选项 ID `134312 → 140843 → 140847 → 134313`，规则优先按 ID 匹配。
 
 ### 仍需在客户端验证

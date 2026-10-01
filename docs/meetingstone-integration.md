@@ -2,7 +2,7 @@
 
 ## 目标
 
-让同一账号下的所有角色都能在集合石的“最近搜索”中看到指定活动，例如火焰之地。
+让同一账号下的所有角色都能在集合石的“最近搜索”中看到指定活动，例如永歌森林。
 
 ## 集合石原行为
 
@@ -13,7 +13,7 @@
 
 ## 集成方式
 
-`AzerothAssistant` 在 `MeetingStone` 加载后包装：
+`Cheeser` 在 `MeetingStone` 加载后包装：
 
 ```lua
 Profile.GetHistoryList
@@ -30,7 +30,7 @@ LibStub("NetEaseEnv-1.0")._NSList.MeetingStone.Profile
 包装后的行为：
 
 1. 调用集合石原函数，取得当前角色的真实搜索历史。
-2. 读取账号级 `AzerothAssistantDB.meetingStoneFavorites.entries`。
+2. 读取账号级 `CheeserDB.meetingStoneFavorites.entries`。
 3. 把收藏代码去重后放到列表最前面。
 4. 返回新列表，供集合石生成“最近搜索”菜单。
 
@@ -39,7 +39,7 @@ LibStub("NetEaseEnv-1.0")._NSList.MeetingStone.Profile
 ## 默认收藏
 
 ```text
-3-78-676-0 = 火焰之地（普通）
+1-397-1943-0 = 永歌森林
 ```
 
 ## 名称解析
@@ -57,7 +57,7 @@ C_LFGList.GetAvailableActivities(nil, nil, nil, keyword)
 不需要手动查找活动代码：
 
 1. 在集合石中搜索目标副本。
-2. 执行 `/aa stone addcurrent`。
+2. 执行 `/che stone addcurrent`。
 3. 插件调用 `Profile:GetLastSearchCode()`，取得当前活动代码并加入收藏。
 
 收藏窗口会通过活动 ID 显示集合石提供的真实副本名称。

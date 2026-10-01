@@ -1,4 +1,4 @@
-# 正式服 艾泽拉斯助手 API 调研
+# 正式服 逃课助手 API 调研
 
 调研日期：2026-09-14（Asia/Shanghai）
 
@@ -103,7 +103,7 @@ end
 [符文石检测] 位面 1234：左中 已激活
 ```
 
-其中位置名称使用黄色，`已激活` 使用绿色。坐标和 Vignette ID 仅通过 `/aa rune debug` 输出。
+其中位置名称使用黄色，`已激活` 使用绿色。坐标和 Vignette ID 仅通过 `/che rune debug` 输出。
 
 四个周常任务同时使用 `C_QuestLog.IsOnQuest(questID)` 和 `C_QuestLog.IsQuestFlaggedCompleted(questID)` 检查：
 

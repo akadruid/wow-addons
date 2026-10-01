@@ -78,7 +78,7 @@ local function GetRunestoneTooltipText(vignetteInfo)
     end
 
     if not tooltip then
-        tooltip = CreateFrame("GameTooltip", "AzerothAssistantRunestoneTooltip", UIParent, "GameTooltipTemplate")
+        tooltip = CreateFrame("GameTooltip", "CheeserRunestoneTooltip", UIParent, "GameTooltipTemplate")
         tooltip:SetOwner(UIParent, "ANCHOR_NONE")
         tooltip:Hide()
     end
@@ -271,27 +271,6 @@ function Runestone:PrintQuestStatus()
     end
 end
 
-function Runestone:GetActiveRunestones()
-    local runestones = self:GetRunestones()
-    if runestones == nil then
-        return nil
-    end
-
-    local activated = {}
-    local unknown = 0
-    for _, runestone in ipairs(runestones) do
-        if not runestone.info.isDead then
-            if runestone.activationState == true then
-                activated[#activated + 1] = runestone
-            elseif runestone.activationState == nil then
-                unknown = unknown + 1
-            end
-        end
-    end
-
-    return activated, unknown
-end
-
 local function GetActivationLabel(state)
     if state == true then
         return ns.L.RUNESTONE_STATE_ACTIVATED
@@ -308,7 +287,23 @@ local function FormatCoordinate(value)
     return string.format("%.1f", value * 100)
 end
 
-function Runestone:PrintStatus()
+local function StripColors(text)
+    if type(text) ~= "string" then
+        return ""
+    end
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
+    text = text:gsub("|r", "")
+    return text
+end
+
+function Runestone:PrintStatus(announceToParty)
+    -- 未接任务（既没接、也没完成）时，不通报符文石状态，只提示任务缺失。
+    local accepted = self:GetAcceptedQuestCount()
+    if accepted == 0 then
+        self:PrintQuestStatus()
+        return
+    end
+
     local status, runestone = self:GetStatus()
     local shardID = self:GetShardInfo()
     local message
@@ -328,6 +323,31 @@ function Runestone:PrintStatus()
 
     ns.Addon:Print(message)
     self:PrintQuestStatus()
+
+    if announceToParty then
+        self:AnnounceToParty(message)
+    end
+end
+
+function Runestone:CheckManual()
+    self:PrintStatus(true)
+end
+
+function Runestone:AnnounceToParty(message)
+    if not ns.Config:IsEnabled("runestoneAnnounce") then
+        return
+    end
+    if IsInRaid and IsInRaid() then
+        return
+    end
+    if not IsInGroup or not IsInGroup() then
+        return
+    end
+
+    local text = StripColors(message or "")
+    if text ~= "" then
+        SendChatMessage(text, "PARTY")
+    end
 end
 
 function Runestone:CheckAutomatic(force)

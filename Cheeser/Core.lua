@@ -104,8 +104,8 @@ function Addon:OnAddonLoaded(name)
         return
     end
 
-    AzerothAssistantDB = AzerothAssistantDB or GuildPartyInviterDB or {}
-    self.db = AzerothAssistantDB
+    CheeserDB = CheeserDB or {}
+    self.db = CheeserDB
 
     self:UnregisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -124,21 +124,16 @@ function Addon:OnAddonLoaded(name)
     ns.Talk.Initialize()
     ns.Config:Apply()
 
-    SLASH_AZEROTHASSISTANT1 = "/aa"
-    SLASH_AZEROTHASSISTANT2 = "/assistant"
-    SLASH_AZEROTHASSISTANT3 = "/gpi"
-    SlashCmdList.AZEROTHASSISTANT = function(message)
+    SLASH_CHEESER1 = "/cheeser"
+    SLASH_CHEESER2 = "/che"
+    SlashCmdList.CHEESER = function(message)
         local command = string.lower((message or ""):match("^%s*(.-)%s*$"))
         if command == "refresh" then
             self:RefreshAll(true)
             self:Print(ns.L.REFRESH)
-        elseif command == "lock" then
-            ns.UI:SetQuickBarLocked(true)
-        elseif command == "unlock" then
-            ns.UI:SetQuickBarLocked(false)
         elseif command == "rune" or command == "runestone" then
             if ns.Config:IsEnabled("runestone") then
-                ns.Runestone:PrintStatus()
+                ns.Runestone:CheckManual()
             else
                 self:Print(ns.L.SETTINGS_DISABLED_RUNESTONE)
             end
@@ -148,27 +143,10 @@ function Addon:OnAddonLoaded(name)
             else
                 self:Print(ns.L.SETTINGS_DISABLED_RUNESTONE)
             end
-        elseif command == "config" or command == "settings" or command == "options" then
-            ns.Config:Open()
         elseif command == "leave" then
             self:LeavePartyWithoutConfirmation()
         elseif command == "talk" then
-            ns.Talk.PrintStatus()
-        elseif command == "talk on" then
-            ns.Talk.SetEnabled(true)
-        elseif command == "talk off" then
-            ns.Talk.SetEnabled(false)
-        elseif command == "talk list" then
-            ns.Talk.PrintRules()
-        elseif command == "source" or command == "source list" then
-            ns.Roster:PrintSources()
-        elseif string.sub(command, 1, 7) == "source " then
-            if ns.Roster:SetSourceByToken(string.sub(command, 8)) then
-                self:RefreshAll(true)
-                self:Print(string.format(ns.L.NOTIFY_SOURCE_CHANGED, ns.Roster:GetSourceLabel()))
-            else
-                self:Print(ns.L.SOURCE_INVALID)
-            end
+            ns.Talk.SetEnabled(not ns.Talk.IsEnabled())
         elseif command == "stone" or command == "meetingstone" then
             ns.MeetingStoneFavorites:ToggleUI()
         elseif command == "stone on" then
@@ -208,7 +186,7 @@ function Addon:OnAddonLoaded(name)
                 self:Print(ns.L.MEETINGSTONE_REMOVE_FAILED)
             end
         else
-            ns.UI:Toggle()
+            ns.Config:Open()
         end
     end
 
