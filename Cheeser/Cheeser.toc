@@ -4,7 +4,7 @@
 ## Notes: Quality-of-life shortcut helper for World of Warcraft.
 ## Notes-zhCN: 用于魔兽世界的便捷“逃课”小工具。
 ## Author: akadruid
-## Version: 0.10.0
+## Version: 1.0.0
 ## SavedVariables: CheeserDB
 ## X-Category: Utility
 
