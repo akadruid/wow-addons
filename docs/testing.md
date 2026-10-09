@@ -23,7 +23,7 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 1. 完全退出魔兽世界。
 2. 覆盖部署 `Cheeser` 目录。
 3. 启动正式服。
-4. 在插件列表确认 `Cheeser / 逃课助手` 已启用。
+4. 在插件列表确认 `Cheeser` 已启用。
 5. 进游戏开启 Lua 错误显示：
 
 ```text
@@ -50,7 +50,7 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 
 ## 快捷键
 
-1. `ESC → 按键设置 → 插件 → 逃课助手`。
+1. `ESC → 按键设置 → 插件 → Cheeser`。
 2. 给“邀请首位符合条件的在线成员”和“无需确认直接离开当前小队”各设一个按键。
 3. 直接按邀请键，确认邀请首位生效；按离队键，确认无确认弹窗离队（团队中应只提示不离队）。
 

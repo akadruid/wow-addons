@@ -1,6 +1,5 @@
 ## Interface: 120100
 ## Title: Cheeser
-## Title-zhCN: 逃课助手
 ## Notes: Quality-of-life shortcut helper for World of Warcraft.
 ## Notes-zhCN: 用于魔兽世界的便捷“逃课”小工具。
 ## Author: akadruid

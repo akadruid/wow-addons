@@ -1,4 +1,4 @@
-# 正式服 逃课助手 API 调研
+# 正式服 Cheeser API 调研
 
 调研日期：2026-09-14（Asia/Shanghai）
 
