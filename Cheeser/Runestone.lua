@@ -346,7 +346,8 @@ function Runestone:AnnounceToParty(message)
 
     local text = StripColors(message or "")
     if text ~= "" then
-        SendChatMessage(text, "PARTY")
+        -- 通报时带上插件名前缀，方便小队成员看到来源、便于传播。
+        SendChatMessage(ns.L.RUNESTONE_ANNOUNCE_PREFIX .. text, "PARTY")
     end
 end
 
