@@ -6,7 +6,7 @@
 ## Version: 1.0.0
 ## SavedVariables: RollWorthyDB
 ## X-Category: Utility
-## IconTexture: Interface\Icons\inv_misc_curiouscoin
+## IconTexture: 7658129
 
 Locales.lua
 Config.lua
