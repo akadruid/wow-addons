@@ -1,3 +1,14 @@
+# wow-addons
+
+本仓库放两个正式服插件，各自独立安装、独立启用：
+
+| 插件 | 目录 | 说明 |
+| --- | --- | --- |
+| Cheeser | `Cheeser/` | “逃课”小工具：一键组队、符文石检测、集合石收藏、任务对话自动选择 |
+| RollWorthy | `RollWorthy/` | 值得才ROLL：只在英雄/史诗团本和达标大秘境放行 ROLL 币 |
+
+---
+
 # Cheeser
 
 面向《魔兽世界》正式服的“逃课”小工具：把多角色、重复性的操作收进一条极简快捷栏，能少点一下是一下。
@@ -127,6 +138,12 @@ Cheeser/
   Runestone.lua
   Talk.lua
   UI.lua
+RollWorthy/
+  RollWorthy.toc
+  Config.lua
+  Core.lua
+  Locales.lua
+  README.md
 docs/
   api-research.md
   meetingstone-integration.md

@@ -1,0 +1,13 @@
+## Interface: 120100
+## Title: RollWorthy
+## Notes: Content filter for bonus rolls: pick which content may spend a Voidcore.
+## Notes-zhCN: 值得才ROLL：按场景控制 ROLL 币（晦暗虚空核心）——大秘境、团本、世界、地下堡四组各自开关；四类以外不阻止。
+## Author: akadruid
+## Version: 1.0.0
+## SavedVariables: RollWorthyDB
+## X-Category: Utility
+## IconTexture: Interface\Icons\inv_misc_curiouscoin
+
+Locales.lua
+Config.lua
+Core.lua
