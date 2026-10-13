@@ -173,6 +173,9 @@ local function Print(message)
     end
 end
 
+-- 供同插件的其它文件复用（带插件名前缀的本地聊天输出）。
+ns.Print = Print
+
 -- 跳过时同时提示：聊天框写一行，屏幕中央再闪一次（都只对自己可见，不发任何频道）。
 local function NotifySkip(chatText, screenText)
     Print(chatText)
@@ -713,6 +716,8 @@ local function HandleCommand(message)
     elseif command == "log clear" then
         logEntries = {}
         Print(ns.L.LOG_CLEARED)
+    elseif command == "ask" then
+        ns.Config:AskFirstRun(true)
     elseif command == "" or command == "status" then
         Print(StatusText())
     else

@@ -497,3 +497,170 @@ loader:SetScript("OnEvent", function(frame, _, loadedName)
         end)
     end
 end)
+
+-- 首次使用引导：账号下第一个登录的角色弹一次（选什么都只弹一次，之后不再打扰）。
+-- 从 1.0 升级上来、但还没开启过的老用户也会看到一次；已经开启过的直接跳过。
+-- 文案和按钮会按当前开关状态变化（已开启那套只在 /rw ask 强制预览时才会出现）。
+-- StaticPopup 只支持两个按钮，这里最多要三个，所以自绘窗体。
+local FIRST_RUN_KEY = "firstRunAsked"
+local firstRunDialog
+
+-- 和其它提示保持一致：走带插件名前缀的本地输出。
+local function Notify(text)
+    if ns.Print then
+        ns.Print(text)
+    else
+        print(text)
+    end
+end
+
+local function LayoutFirstRunButtons(dialog)
+    local visible = {}
+    for _, button in ipairs({ dialog.enableButton, dialog.settingsButton, dialog.laterButton }) do
+        if button:IsShown() then
+            visible[#visible + 1] = button
+        end
+    end
+
+    local gap = 10
+    local total = gap * (#visible - 1)
+    for _, button in ipairs(visible) do
+        total = total + button:GetWidth()
+    end
+
+    local offset = -total / 2
+    for _, button in ipairs(visible) do
+        button:ClearAllPoints()
+        button:SetPoint("BOTTOM", dialog, "BOTTOM", offset + button:GetWidth() / 2, 18)
+        offset = offset + button:GetWidth() + gap
+    end
+end
+
+local function UpdateFirstRunDialog(dialog)
+    local enabled = Config:IsEnabled("enabled")
+
+    dialog.body:SetText(enabled and ns.L.FIRST_RUN_BODY_ENABLED or ns.L.FIRST_RUN_BODY)
+    dialog.enableButton:SetShown(not enabled)
+    dialog.laterButton:SetText(enabled and ns.L.FIRST_RUN_OK or ns.L.FIRST_RUN_LATER)
+    LayoutFirstRunButtons(dialog)
+end
+
+local function CreateFirstRunDialog()
+    local dialog = CreateFrame("Frame", "RollWorthyFirstRunDialog", UIParent, "BackdropTemplate")
+    dialog:SetSize(470, 236)
+    dialog:SetPoint("CENTER")
+    dialog:SetFrameStrata("DIALOG")
+    dialog:SetClampedToScreen(true)
+    dialog:EnableMouse(true)
+    dialog:SetMovable(true)
+    dialog:RegisterForDrag("LeftButton")
+    dialog:SetScript("OnDragStart", dialog.StartMoving)
+    dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
+    dialog:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true,
+        tileSize = 32,
+        edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 },
+    })
+    dialog:Hide()
+
+    dialog.icon = dialog:CreateTexture(nil, "ARTWORK")
+    dialog.icon:SetSize(40, 40)
+    dialog.icon:SetPoint("TOPLEFT", 22, -22)
+    dialog.icon:SetTexture(7658129)
+    dialog.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local title = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("LEFT", dialog.icon, "RIGHT", 12, 0)
+    title:SetText(ns.L.FIRST_RUN_TITLE)
+
+    dialog.body = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    dialog.body:SetPoint("TOPLEFT", dialog.icon, "BOTTOMLEFT", 0, -16)
+    dialog.body:SetPoint("RIGHT", dialog, "RIGHT", -22, 0)
+    dialog.body:SetJustifyH("LEFT")
+    dialog.body:SetSpacing(4)
+    dialog.body:SetText(ns.L.FIRST_RUN_BODY)
+
+    local function AddButton(text, onClick)
+        local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+        button:SetSize(120, 24)
+        button:SetText(text)
+        button:SetScript("OnClick", onClick)
+        return button
+    end
+
+    dialog.enableButton = AddButton(ns.L.FIRST_RUN_ENABLE, function()
+        dialog.actionTaken = true
+        Config:SetEnabled("enabled", true)
+        Notify(ns.L.FIRST_RUN_ENABLED)
+        dialog:Hide()
+    end)
+
+    dialog.settingsButton = AddButton(ns.L.FIRST_RUN_SETTINGS, function()
+        dialog.actionTaken = true
+        dialog:Hide()
+        Config:Open()
+    end)
+
+    dialog.laterButton = AddButton(ns.L.FIRST_RUN_LATER, function()
+        dialog.actionTaken = true
+        dialog:Hide()
+        if not Config:IsEnabled("enabled") then
+            Notify(ns.L.FIRST_RUN_STILL_OFF)
+        end
+    end)
+
+    -- ESC 关掉也算“暂不开启”，给一句提示，免得以后找不到入口。
+    dialog:HookScript("OnHide", function(self)
+        if not self.actionTaken and not Config:IsEnabled("enabled") then
+            Notify(ns.L.FIRST_RUN_STILL_OFF)
+        end
+        self.actionTaken = false
+    end)
+
+    table.insert(UISpecialFrames, "RollWorthyFirstRunDialog")
+    return dialog
+end
+
+local function ShowFirstRunDialog()
+    if not firstRunDialog then
+        firstRunDialog = CreateFirstRunDialog()
+    end
+    firstRunDialog.actionTaken = false
+    UpdateFirstRunDialog(firstRunDialog)
+    firstRunDialog:Show()
+end
+
+function Config:AskFirstRun(force)
+    if force then
+        ShowFirstRunDialog()
+        return true
+    end
+
+    if type(RollWorthyDB) ~= "table" or RollWorthyDB[FIRST_RUN_KEY] then
+        return false
+    end
+
+    -- 只问一次：不管选什么（包括 ESC 关闭）都置位。
+    RollWorthyDB[FIRST_RUN_KEY] = true
+
+    -- 之前版本里已经开启过的老用户不再打扰（静默置位）。
+    if self:IsEnabled("enabled") then
+        return false
+    end
+
+    ShowFirstRunDialog()
+    return true
+end
+
+local firstRunWatcher = CreateFrame("Frame")
+firstRunWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+firstRunWatcher:SetScript("OnEvent", function(frame)
+    frame:UnregisterAllEvents()
+    -- 稍等一下再弹，避开登录瞬间的界面加载。
+    C_Timer.After(2.5, function()
+        Config:AskFirstRun(false)
+    end)
+end)
