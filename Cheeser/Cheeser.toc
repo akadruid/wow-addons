@@ -1,9 +1,9 @@
-## Interface: 120100
+## Interface: 120105, 120100, 120007, 120005, 120001, 120000
 ## Title: Cheeser
 ## Notes: Quality-of-life shortcut helper for World of Warcraft.
 ## Notes-zhCN: 用于魔兽世界的便捷“逃课”小工具。
 ## Author: akadruid
-## Version: 1.0.1
+## Version: 1.0.2
 ## SavedVariables: CheeserDB
 ## X-Category: Utility
 ## IconTexture: Interface\AddOns\Cheeser\Cheeser.tga

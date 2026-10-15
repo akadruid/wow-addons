@@ -17,7 +17,7 @@
 
 当前基线：
 
-- 正式服 `12.1.0 (69814)`，TOC `Interface: 120100`
+- 正式服 `12.1.5`，TOC `Interface: 120105, 120100, 120007, 120005, 120001, 120000`（覆盖 12.x 全部正式服补丁）
 - 面向 `zhCN` 客户端，保留 `enUS` 回退文本
 
 ## 功能
@@ -144,6 +144,8 @@ RollWorthy/
   Core.lua
   Locales.lua
   README.md
+tools/
+  package.ps1          打包脚本：输出 dist/插件名-版本.zip（dist/ 不入库）
 docs/
   api-research.md
   meetingstone-integration.md

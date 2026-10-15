@@ -5,7 +5,7 @@
 开发目录：
 
 ```text
-D:\ai\插件开发\wow-addons\Cheeser
+E:\ai\wow-addons\Cheeser
 ```
 
 正式服插件目录：
@@ -106,6 +106,11 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 | `.lua` 文件内容 | `/reload` |
 | `.toc` 元数据 | `/reload` 后插件列表仍显示旧值，需重启刷新 |
 | `.toc` 文件清单、`Bindings.xml`、新增 / 改名 / 改目录 | 完全退出后重启 |
+
+## 补丁兼容自检
+
+- 游戏更新后，插件列表里 `Cheeser` / `RollWorthy` 都不应出现「已过期」标记。
+- 对照 `select(4, GetBuildInfo())` 打印出的版本号，确认 `.toc` 的 `## Interface` 列表里有这个数字（12.1.5 = `120105`）。
 
 ## 反馈问题需提供
 
