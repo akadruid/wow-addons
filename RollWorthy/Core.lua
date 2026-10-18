@@ -56,12 +56,15 @@ local RAID_RANK = {
 }
 
 -- 暴雪的战利品容器布局可能在弹窗出现后重新显示窗口；弹窗存活期间只补隐藏同一个弹窗。
-local GUARD_FALLBACK_SECONDS = 10
-local GUARD_MAX_SECONDS = 10
+-- 12.1.5 实测：客户端会隔几秒反复重显同一个被隐藏的弹窗。
+-- 守卫活到弹窗自己的到期时间（endTime）为止，拿不到 endTime 时退回 30 秒。
+local GUARD_FALLBACK_SECONDS = 30
+local GUARD_TICK = 0.1
 
 local hookInstalled = false
 local guardFrame
 local guardUntil = 0
+local guardElapsed = 0
 local guardSpellID
 local guardEndTime = 0
 local lastHandledKey
@@ -396,13 +399,22 @@ end
 
 local function StopGuard()
     guardUntil = 0
+    guardElapsed = 0
     if guardFrame then
         guardFrame:SetScript("OnUpdate", nil)
     end
 end
 
-local function OnGuardUpdate()
-    if guardUntil <= 0 or GetTime() >= guardUntil then
+local function OnGuardUpdate(_, elapsed)
+    guardElapsed = guardElapsed + (elapsed or 0)
+    if guardElapsed < GUARD_TICK then
+        return
+    end
+    guardElapsed = 0
+
+    local now = GetTime()
+    if guardUntil <= 0 or now >= guardUntil then
+        LogLine("guard", "expired")
         StopGuard()
         return
     end
@@ -418,10 +430,11 @@ local function OnGuardUpdate()
         and (bonusFrame.endTime or 0) == guardEndTime then
         LogLine("guard", "re-hide same prompt")
         pcall(bonusFrame.Hide, bonusFrame)
+        pcall(bonusFrame.SetAlpha, bonusFrame, 0)
     end
 end
 
-local function StartGuard(spellID, endTime)
+local function StartGuard(spellID, endTime, duration)
     -- 弹窗标识不完整时不做守卫：否则会把之后的弹窗一起静默隐藏，连提示都没有。
     -- 守卫只是防止布局把窗口又显示出来的兜底，丢了不影响拦截本身。
     if spellID == nil or (endTime or 0) <= 0 then
@@ -433,13 +446,22 @@ local function StartGuard(spellID, endTime)
 
     guardSpellID = spellID
     guardEndTime = endTime or 0
+    guardElapsed = 0
 
+    -- 注意：BonusRollFrame.endTime 是服务器时间戳（epoch），不能和 GetTime() 比较。
+    -- 守卫时长用弹窗自带的 duration（秒），它和 UI 上的倒计时是同一个值。
     local now = GetTime()
-    if guardEndTime > now then
-        guardUntil = math.min(guardEndTime + 1, now + GUARD_MAX_SECONDS)
-    else
-        guardUntil = now + GUARD_FALLBACK_SECONDS
+    local seconds = tonumber(duration) or 0
+    if seconds <= 0 then
+        seconds = GUARD_FALLBACK_SECONDS
     end
+    seconds = math.min(seconds, 300)
+    guardUntil = now + seconds + 2
+
+    local serverNow = GetServerTime and GetServerTime() or time()
+    LogLine("guard", string.format("start spell=%s dur=%s remaining=%s left=%s endTime=%s until-now=%.1f",
+        tostring(spellID), tostring(duration), tostring(BonusRollFrame and BonusRollFrame.remaining),
+        tostring(guardEndTime - serverNow), tostring(guardEndTime), guardUntil - now))
 
     if not guardFrame then
         guardFrame = CreateFrame("Frame")
@@ -447,7 +469,7 @@ local function StartGuard(spellID, endTime)
     end
 end
 
-local function SuppressPrompt()
+local function SuppressPrompt(duration)
     local bonusFrame = BonusRollFrame
     if not bonusFrame then
         return false
@@ -463,8 +485,10 @@ local function SuppressPrompt()
     if bonusFrame:IsShown() then
         pcall(bonusFrame.Hide, bonusFrame)
     end
+    -- 重显时也不让它可见（Show 不会重置 alpha）。
+    pcall(bonusFrame.SetAlpha, bonusFrame, 0)
 
-    StartGuard(spellID, endTime)
+    StartGuard(spellID, endTime, duration)
     return not bonusFrame:IsShown()
 end
 
@@ -493,21 +517,30 @@ local function HandlePrompt(prompt)
 
     if not enabled then
         lastAction = "disabled"
+        StopGuard()
+        if BonusRollFrame then
+            pcall(BonusRollFrame.SetAlpha, BonusRollFrame, 1)
+        end
         return
     end
 
     if allowed then
         lastAction = "allowed"
+        StopGuard()
+        if BonusRollFrame then
+            pcall(BonusRollFrame.SetAlpha, BonusRollFrame, 1)
+        end
         return
     end
 
     -- 跳过时一定有提示，不做开关；提示里带上原始数值，方便直接看出是按哪条规则拦的。
     local label = DescribeContext(difficultyID, level, branch)
     NotifySkip(
-        string.format(ns.L.NOTIFY_SKIPPED_DETAIL, label, tostring(branch), tostring(difficultyID), tostring(level)),
-        string.format(ns.L.NOTIFY_SKIPPED_SCREEN, label, tostring(difficultyID), tostring(level)))
+        string.format(ns.L.NOTIFY_SKIPPED_DETAIL, label),
+        string.format(ns.L.NOTIFY_SKIPPED_SCREEN, label))
+    Print(ns.L.NOTIFY_SKIPPED_HINT)
 
-    if SuppressPrompt() then
+    if SuppressPrompt(prompt.duration) then
         lastAction = "skipped"
         LogLine("skip", string.format("closed=true %s diff=%s lvl=%s",
             label, tostring(difficultyID), tostring(level)))
@@ -559,6 +592,7 @@ local function HandleActivePrompt()
         if IsBonusRollConfirmType(entry.confirmType) then
             HandlePromptOnce({
                 spellID = entry.spellID,
+                duration = entry.duration,
                 difficultyID = entry.difficultyID,
                 displayItemID = entry.displayItemID,
                 itemContext = entry.itemContext,
@@ -573,12 +607,14 @@ local function InstallStartHook()
         return
     end
 
-    hooksecurefunc("BonusRollFrame_StartBonusRoll", function(spellID, promptText, _, currencyID, currencyCost, difficultyID, displayItemID, itemContext, treasureContextLevel)
-        LogLine("hook", string.format("StartBonusRoll spell=%s currency=%s diff=%s ctx=%s lvl=%s item=%s text=%s",
-            tostring(spellID), tostring(currencyID), tostring(difficultyID), tostring(itemContext),
-            tostring(treasureContextLevel), tostring(displayItemID), Shorten(promptText, 48)))
+    hooksecurefunc("BonusRollFrame_StartBonusRoll", function(spellID, promptText, rollTime, currencyID, currencyCost, difficultyID, displayItemID, itemContext, treasureContextLevel)
+        LogLine("hook", string.format("StartBonusRoll spell=%s dur=%s currency=%s diff=%s ctx=%s lvl=%s item=%s text=%s",
+            tostring(spellID), tostring(rollTime), tostring(currencyID), tostring(difficultyID),
+            tostring(itemContext), tostring(treasureContextLevel), tostring(displayItemID),
+            Shorten(promptText, 48)))
         HandlePromptOnce({
             spellID = spellID,
+            duration = rollTime,
             difficultyID = difficultyID,
             displayItemID = displayItemID,
             itemContext = itemContext,
@@ -614,14 +650,16 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             tostring(BonusRollFrame ~= nil and BonusRollFrame:IsShown())))
         HandleActivePrompt()
     elseif event == "SPELL_CONFIRMATION_PROMPT" then
-        local spellID, confirmType, text, _, currencyID, currencyCost, difficultyID, displayItemID, itemContext, treasureContextLevel = ...
-        LogLine("event", string.format("SPELL_CONFIRMATION_PROMPT type=%s bonusRoll=%s spell=%s currency=%s cost=%s diff=%s ctx=%s lvl=%s item=%s text=%s",
+        local spellID, confirmType, text, duration, currencyID, currencyCost, difficultyID, displayItemID, itemContext, treasureContextLevel = ...
+        LogLine("event", string.format("SPELL_CONFIRMATION_PROMPT type=%s bonusRoll=%s spell=%s dur=%s currency=%s cost=%s diff=%s ctx=%s lvl=%s item=%s text=%s",
             tostring(confirmType), tostring(IsBonusRollConfirmType(confirmType)), tostring(spellID),
-            tostring(currencyID), tostring(currencyCost), tostring(difficultyID), tostring(itemContext),
-            tostring(treasureContextLevel), tostring(displayItemID), Shorten(text, 48)))
+            tostring(duration), tostring(currencyID), tostring(currencyCost), tostring(difficultyID),
+            tostring(itemContext), tostring(treasureContextLevel), tostring(displayItemID),
+            Shorten(text, 48)))
         if IsBonusRollConfirmType(confirmType) then
             HandlePromptOnce({
                 spellID = spellID,
+                duration = duration,
                 difficultyID = difficultyID,
                 displayItemID = displayItemID,
                 itemContext = itemContext,
@@ -705,8 +743,9 @@ local function HandleCommand(message)
         Print(StatusText())
     elseif command == "test" then
         NotifySkip(
-            string.format(ns.L.NOTIFY_SKIPPED_DETAIL, ns.L.DIFF_RAID_NORMAL, "raid", "14", "0"),
-            string.format(ns.L.NOTIFY_SKIPPED_SCREEN, ns.L.DIFF_RAID_NORMAL, "14", "0"))
+            string.format(ns.L.NOTIFY_SKIPPED_DETAIL, ns.L.DIFF_RAID_NORMAL),
+            string.format(ns.L.NOTIFY_SKIPPED_SCREEN, ns.L.DIFF_RAID_NORMAL))
+        Print(ns.L.NOTIFY_SKIPPED_HINT)
     elseif command == "debug" then
         Print(DebugText())
     elseif command == "log" then
