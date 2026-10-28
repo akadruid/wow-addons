@@ -14,7 +14,7 @@ E:\ai\wow-addons\Cheeser
 D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 ```
 
-目录里应包含 `Cheeser.toc`、`Bindings.xml`、`Config.lua`、`Core.lua`、`Locales.lua`、`MeetingStone.lua`、`Roster.lua`、`Runestone.lua`、`Talk.lua`、`UI.lua`。
+目录里应包含 `Cheeser.toc`、`Bindings.xml`、`AutoBuy.lua`、`AutoBuyMerchantUI.lua`、`Config.lua`、`Core.lua`、`Locales.lua`、`MeetingStone.lua`、`Roster.lua`、`Runestone.lua`、`Talk.lua`、`UI.lua`。
 
 部署前确认插件目录中只有一份 `Cheeser`，移除可能残留的旧目录。
 
@@ -36,6 +36,7 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 
 ```text
 /che
+/che buy
 /che rune
 /dump GetBindingKey("CHEESER_RANDOM_INVITE")
 /dump C_VignetteInfo.GetVignettes()
@@ -44,6 +45,7 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 预期：
 
 - `/che` 打开设置面板。
+- `/che buy` 打开设置面板中的商人自动购买部分。
 - 屏幕顶部左侧出现 `[邀] [符]` 两个文字按钮。
 - `/che rune` 输出当前位面符文石状态（一个周常都没接时只输出 `符文石任务缺失0/4`）。
 - `GetBindingKey` 在设置快捷键前为空，设置后返回按键名。
@@ -98,6 +100,25 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 2. `/che talk` 切换开关（输出 开启 / 关闭）。
 3. 与狩猎 NPC 对话，自动依次选择四步并逐行提示。
 4. 按住 `Shift` 对话应不自动选择。
+
+## 商人自动购买
+
+建议先用低金币上限和“只预览不购买”验证容量计算。
+
+1. 全新安装时 `/che buy` 应显示“尚未选择物品”；填写物品 ID，或点“从背包选择”选择一件背包物品。
+2. 先保持购买数量为默认值 `1`，勾选“只预览不购买”，将金币上限设为 `500`、保留空格设为 `1`。
+3. 手动打开出售该物品的商人。聊天框应输出可购买数量、金币和其他货币成本，且背包和金币不变。
+4. 关闭预览，设置购买数量为 `3`，将金币上限设为足以购买 3 件的数值，再重新打开商人；应只购买 3 件后停止。
+5. 将购买数量改为 `0`、金币上限设为足以购买少量物品的数值，重新打开商人；应以批量请求快速购买，明显快于约一秒一件，并在达到金币上限或只剩 1 个适用空格时停止并输出汇总。
+6. 将保留空格改为 `0`、金币上限改为 `0`，确认会持续到普通背包和钓鱼袋都没有可用空间。
+7. 对使用其他货币或物品兑换的商人，确认持有量不足时停止，并确认预览中的货币数量按“单次兑换成本 × 计划份数”计算。
+8. 在购买过程中关闭商人、切换到出售页、把相关货币或物品余额降到不足或清空商人库存，均应立即停止。
+9. 背包选择列表应合并显示普通背包、材料包中的同 ID 物品，滚轮可滚动，点击物品行后设置框立即更新。
+10. 商人窗口左侧应显示 `自动购买` 按钮；右键打开设置窗口，修改物品、数量、金币上限、保留空格、开关和预览模式后，完整设置页应同步更新。
+11. 左键快捷按钮开始购买；购买过程中按钮显示 `停止购买`，再次左键应立即停止后续批次，面板中的输入框应锁定。
+12. 停止后按钮短暂显示 `正在停止...`，随后恢复为 `自动购买`；已提交的当前批次可能继续到账，但不应自动开始下一批。
+13. 模拟一次购买超时或报错后，按钮恢复为 `自动购买`；再次左键应能从当前背包状态继续购买。
+14. 关闭商人后，独立设置窗口应自动关闭；重新打开商人时，快捷按钮重新出现。
 
 ## 代码改动后的测试
 

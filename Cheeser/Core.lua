@@ -122,6 +122,8 @@ function Addon:OnAddonLoaded(name)
     ns.UI:Create()
     ns.MeetingStoneFavorites:Initialize()
     ns.Talk.Initialize()
+    ns.AutoBuy:Initialize()
+    ns.AutoBuyMerchantUI:Initialize()
     ns.Config:Apply()
 
     SLASH_CHEESER1 = "/cheeser"
@@ -147,6 +149,8 @@ function Addon:OnAddonLoaded(name)
             self:LeavePartyWithoutConfirmation()
         elseif command == "talk" then
             ns.Talk.SetEnabled(not ns.Talk.IsEnabled())
+        elseif command == "buy" then
+            ns.Config:Open()
         elseif command == "stone" or command == "meetingstone" then
             ns.MeetingStoneFavorites:ToggleUI()
         elseif command == "stone on" then

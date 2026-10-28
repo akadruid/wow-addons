@@ -8,6 +8,7 @@ local DEFAULTS = {
     runestone = true,
     autoHunt = true,
     runestoneAnnounce = true,
+    autoBuy = false,
 }
 
 local function IsKnownKey(key)
@@ -66,6 +67,86 @@ function Config:SetEnabled(key, enabled)
     self:Apply()
 end
 
+local function NormalizeAutoBuySettings()
+    local db = ns.Addon and ns.Addon.db
+    if not db then
+        return {
+            itemID = 0,
+            quantity = 1,
+            maxSpendGold = 0,
+            reserveSlots = 0,
+            dryRun = false,
+        }
+    end
+
+    if type(db.autoBuy) ~= "table" then
+        db.autoBuy = {}
+    end
+
+    local settings = db.autoBuy
+    if settings.itemID == nil then
+        settings.itemID = 0
+    else
+        settings.itemID = math.max(math.floor(tonumber(settings.itemID) or 0), 0)
+    end
+
+    if settings.maxSpendGold == nil then
+        settings.maxSpendGold = 0
+    else
+        settings.maxSpendGold = math.max(math.floor(tonumber(settings.maxSpendGold) or 0), 0)
+    end
+
+    if settings.quantity == nil then
+        settings.quantity = 1
+    else
+        settings.quantity = math.max(math.floor(tonumber(settings.quantity) or 0), 0)
+    end
+
+    if settings.reserveSlots == nil then
+        settings.reserveSlots = 0
+    else
+        settings.reserveSlots = math.max(math.floor(tonumber(settings.reserveSlots) or 0), 0)
+    end
+
+    settings.dryRun = settings.dryRun == true
+    return settings
+end
+
+function Config:GetAutoBuySettings()
+    return NormalizeAutoBuySettings()
+end
+
+function Config:SetAutoBuyOption(key, value)
+    local settings = NormalizeAutoBuySettings()
+    if key == "itemID"
+        or key == "quantity"
+        or key == "maxSpendGold"
+        or key == "reserveSlots" then
+        value = math.max(math.floor(tonumber(value) or 0), 0)
+    elseif key == "dryRun" then
+        value = value == true
+    else
+        return
+    end
+
+    settings[key] = value
+    if key == "itemID" and C_Item and C_Item.RequestLoadItemDataByID and value > 0 then
+        pcall(C_Item.RequestLoadItemDataByID, value)
+    end
+
+    if ns.AutoBuy then
+        ns.AutoBuy:OnSettingsChanged()
+    end
+
+    self:RefreshPanel()
+end
+
+function Config:SetAutoBuyItem(itemID)
+    if tonumber(itemID) then
+        self:SetAutoBuyOption("itemID", itemID)
+    end
+end
+
 function Config:Apply()
     if ns.Talk then
         ns.Talk.OnSettingsChanged()
@@ -77,6 +158,10 @@ function Config:Apply()
 
     if ns.Addon and ns.Addon.ScheduleRunestoneAutoCheck then
         ns.Addon:ScheduleRunestoneAutoCheck()
+    end
+
+    if ns.AutoBuy then
+        ns.AutoBuy:OnSettingsChanged()
     end
 
     self:RefreshPanel()
@@ -137,6 +222,12 @@ end)
 
 local toggles = {}
 local sourceDropdown
+local autoBuyItemInput
+local autoBuyItemSummary
+local autoBuyQuantityInput
+local autoBuyMaxInput
+local autoBuyReserveInput
+local autoBuyDryRun
 
 local function FormatSourceText(name, sourceType)
     if type(name) == "string" and name ~= "" then
@@ -258,6 +349,146 @@ local function CreateModuleToggle(key, label, hint, y)
     return check
 end
 
+local function CreateSettingEditBox(parent, y, width, maxLetters, onCommit)
+    local editBox = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+    editBox:SetSize(width, 30)
+    editBox:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, y)
+    editBox:SetAutoFocus(false)
+    editBox:SetNumeric(true)
+    editBox:SetMaxLetters(maxLetters)
+    editBox:SetScript("OnEditFocusGained", function(entered)
+        entered.savedText = entered:GetText()
+    end)
+    editBox:SetScript("OnEnterPressed", function(entered)
+        entered:ClearFocus()
+    end)
+    editBox:SetScript("OnEscapePressed", function(entered)
+        entered:SetText(entered.savedText or entered:GetText())
+        entered:ClearFocus()
+    end)
+    editBox:SetScript("OnEditFocusLost", function(entered)
+        onCommit(entered)
+        entered.savedText = entered:GetText()
+    end)
+    return editBox
+end
+
+local function CommitAutoBuyItem(editBox)
+    local value = math.floor(tonumber(editBox:GetText()) or 0)
+    Config:SetAutoBuyOption("itemID", value)
+    Config:RefreshPanel()
+end
+
+local function CommitAutoBuyLimit(editBox)
+    local value = math.floor(tonumber(editBox:GetText()) or 0)
+    Config:SetAutoBuyOption("maxSpendGold", value)
+    Config:RefreshPanel()
+end
+
+local function CommitAutoBuyQuantity(editBox)
+    local value = math.floor(tonumber(editBox:GetText()) or 0)
+    Config:SetAutoBuyOption("quantity", value)
+    Config:RefreshPanel()
+end
+
+local function CommitAutoBuyReserve(editBox)
+    local value = math.floor(tonumber(editBox:GetText()) or 0)
+    Config:SetAutoBuyOption("reserveSlots", value)
+    Config:RefreshPanel()
+end
+
+local function CreateAutoBuyOptions(y)
+    local settings = Config:GetAutoBuySettings()
+    local itemLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    itemLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    itemLabel:SetText(ns.L.AUTOBUY_SETTING_ITEM)
+
+    autoBuyItemInput = CreateSettingEditBox(page, y - 24, 110, 9, CommitAutoBuyItem)
+
+    local pickButton = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    pickButton:SetSize(130, 24)
+    pickButton:SetPoint("LEFT", autoBuyItemInput, "RIGHT", 8, -1)
+    pickButton:SetText(ns.L.AUTOBUY_SETTING_PICK)
+    pickButton:SetScript("OnClick", function()
+        ns.AutoBuy:ShowBagPicker(function(itemID)
+            Config:SetAutoBuyItem(itemID)
+        end)
+    end)
+
+    autoBuyItemSummary = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    autoBuyItemSummary:SetPoint("TOPLEFT", autoBuyItemInput, "BOTTOMLEFT", 0, -4)
+    autoBuyItemSummary:SetWidth(520)
+    autoBuyItemSummary:SetJustifyH("LEFT")
+    autoBuyItemSummary:SetTextColor(0.62, 0.62, 0.62)
+
+    y = y - 86
+    local quantityLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    quantityLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    quantityLabel:SetText(ns.L.AUTOBUY_SETTING_QUANTITY)
+
+    autoBuyQuantityInput = CreateSettingEditBox(page, y - 24, 90, 7, CommitAutoBuyQuantity)
+
+    local quantityHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    quantityHint:SetPoint("TOPLEFT", quantityLabel, "BOTTOMLEFT", 0, -34)
+    quantityHint:SetWidth(165)
+    quantityHint:SetJustifyH("LEFT")
+    quantityHint:SetText(ns.L.AUTOBUY_SETTING_QUANTITY_HINT)
+    quantityHint:SetTextColor(0.62, 0.62, 0.62)
+
+    local maxLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    maxLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 205, y)
+    maxLabel:SetText(ns.L.AUTOBUY_SETTING_MAX)
+
+    autoBuyMaxInput = CreateSettingEditBox(page, y - 24, 90, 8, CommitAutoBuyLimit)
+    autoBuyMaxInput:ClearAllPoints()
+    autoBuyMaxInput:SetPoint("TOPLEFT", page, "TOPLEFT", 205, y - 24)
+
+    local maxHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    maxHint:SetPoint("TOPLEFT", maxLabel, "BOTTOMLEFT", 0, -34)
+    maxHint:SetWidth(165)
+    maxHint:SetJustifyH("LEFT")
+    maxHint:SetText(ns.L.AUTOBUY_SETTING_MAX_HINT)
+    maxHint:SetTextColor(0.62, 0.62, 0.62)
+
+    local reserveLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    reserveLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 390, y)
+    reserveLabel:SetText(ns.L.AUTOBUY_SETTING_RESERVE)
+
+    autoBuyReserveInput = CreateSettingEditBox(page, y - 24, 90, 4, CommitAutoBuyReserve)
+    autoBuyReserveInput:ClearAllPoints()
+    autoBuyReserveInput:SetPoint("TOPLEFT", page, "TOPLEFT", 390, y - 24)
+
+    local reserveHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    reserveHint:SetPoint("TOPLEFT", reserveLabel, "BOTTOMLEFT", 0, -34)
+    reserveHint:SetWidth(150)
+    reserveHint:SetJustifyH("LEFT")
+    reserveHint:SetText(ns.L.AUTOBUY_SETTING_RESERVE_HINT)
+    reserveHint:SetTextColor(0.62, 0.62, 0.62)
+
+    y = y - 104
+    autoBuyDryRun = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
+    autoBuyDryRun:SetSize(26, 26)
+    autoBuyDryRun:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    autoBuyDryRun:SetChecked(settings.dryRun)
+
+    autoBuyDryRun.Label = autoBuyDryRun:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    autoBuyDryRun.Label:SetPoint("LEFT", autoBuyDryRun, "RIGHT", 6, 0)
+    autoBuyDryRun.Label:SetText(ns.L.AUTOBUY_SETTING_DRY_RUN)
+
+    autoBuyDryRun.Hint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    autoBuyDryRun.Hint:SetPoint("TOPLEFT", autoBuyDryRun, "BOTTOMLEFT", 30, -2)
+    autoBuyDryRun.Hint:SetWidth(490)
+    autoBuyDryRun.Hint:SetJustifyH("LEFT")
+    autoBuyDryRun.Hint:SetText(ns.L.AUTOBUY_SETTING_DRY_RUN_HINT)
+    autoBuyDryRun.Hint:SetTextColor(0.62, 0.62, 0.62)
+    autoBuyDryRun:SetScript("OnClick", function(button)
+        Config:SetAutoBuyOption("dryRun", button:GetChecked() and true or false)
+        Config:RefreshPanel()
+    end)
+
+    return y - 60
+end
+
 function Config:RefreshPanel()
     for _, check in ipairs(toggles) do
         check:SetChecked(self:IsEnabled(check.moduleKey))
@@ -266,6 +497,48 @@ function Config:RefreshPanel()
     if sourceDropdown then
         UIDropDownMenu_SetSelectedValue(sourceDropdown, GetCurrentSourceValue())
         UIDropDownMenu_SetText(sourceDropdown, GetCurrentSourceText())
+    end
+
+    local settings = self:GetAutoBuySettings()
+    if autoBuyItemInput and not autoBuyItemInput:HasFocus() then
+        autoBuyItemInput:SetText(settings.itemID > 0 and tostring(settings.itemID) or "")
+    end
+
+    if autoBuyMaxInput and not autoBuyMaxInput:HasFocus() then
+        autoBuyMaxInput:SetText(tostring(settings.maxSpendGold))
+    end
+
+    if autoBuyQuantityInput and not autoBuyQuantityInput:HasFocus() then
+        autoBuyQuantityInput:SetText(tostring(settings.quantity))
+    end
+
+    if autoBuyReserveInput and not autoBuyReserveInput:HasFocus() then
+        autoBuyReserveInput:SetText(tostring(settings.reserveSlots))
+    end
+
+    if autoBuyDryRun then
+        autoBuyDryRun:SetChecked(settings.dryRun)
+    end
+
+    if autoBuyItemSummary then
+        if settings.itemID < 1 then
+            autoBuyItemSummary:SetText(ns.L.AUTOBUY_SETTING_NO_ITEM)
+        else
+            local name, link, _, _, _, _, _, stackSize = C_Item.GetItemInfo(settings.itemID)
+            if not name and C_Item.RequestLoadItemDataByID then
+                pcall(C_Item.RequestLoadItemDataByID, settings.itemID)
+            end
+            autoBuyItemSummary:SetText(string.format(
+                ns.L.AUTOBUY_SETTING_ITEM_SUMMARY,
+                link or name or ns.L.AUTOBUY_SETTING_LOADING,
+                settings.itemID,
+                math.max(stackSize or 1, 1)
+            ))
+        end
+    end
+
+    if ns.AutoBuyMerchantUI then
+        ns.AutoBuyMerchantUI:Refresh()
     end
 end
 
@@ -320,6 +593,13 @@ local function BuildPanel()
     -- 自动蛇岛梦魇狩猎
     CreateModuleToggle("autoHunt", ns.L.SETTINGS_AUTO_HUNT, ns.L.SETTINGS_AUTO_HUNT_HINT, y)
     y = y - 54
+    CreateSeparator(page, y)
+    y = y - 20
+
+    -- 商人自动购买
+    CreateModuleToggle("autoBuy", ns.L.SETTINGS_AUTOBUY, ns.L.SETTINGS_AUTOBUY_HINT, y)
+    y = y - 58
+    y = CreateAutoBuyOptions(y)
     CreateSeparator(page, y)
     y = y - 20
 
