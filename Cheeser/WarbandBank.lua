@@ -69,6 +69,7 @@ local function TryDeposit()
     )
     if ok then
         depositDone = true
+        ns.Addon:Print(ns.L.WARBAND_BANK_DEPOSIT_TRIGGERED)
     end
     return ok
 end
