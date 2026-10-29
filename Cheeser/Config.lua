@@ -72,10 +72,7 @@ local function NormalizeAutoBuySettings()
     if not db then
         return {
             itemID = 0,
-            quantity = 1,
-            maxSpendGold = 0,
-            reserveSlots = 0,
-            dryRun = false,
+            quantity = 0,
         }
     end
 
@@ -90,25 +87,12 @@ local function NormalizeAutoBuySettings()
         settings.itemID = math.max(math.floor(tonumber(settings.itemID) or 0), 0)
     end
 
-    if settings.maxSpendGold == nil then
-        settings.maxSpendGold = 0
-    else
-        settings.maxSpendGold = math.max(math.floor(tonumber(settings.maxSpendGold) or 0), 0)
-    end
-
     if settings.quantity == nil then
-        settings.quantity = 1
+        settings.quantity = 0
     else
         settings.quantity = math.max(math.floor(tonumber(settings.quantity) or 0), 0)
     end
 
-    if settings.reserveSlots == nil then
-        settings.reserveSlots = 0
-    else
-        settings.reserveSlots = math.max(math.floor(tonumber(settings.reserveSlots) or 0), 0)
-    end
-
-    settings.dryRun = settings.dryRun == true
     return settings
 end
 
@@ -118,13 +102,8 @@ end
 
 function Config:SetAutoBuyOption(key, value)
     local settings = NormalizeAutoBuySettings()
-    if key == "itemID"
-        or key == "quantity"
-        or key == "maxSpendGold"
-        or key == "reserveSlots" then
+    if key == "itemID" or key == "quantity" then
         value = math.max(math.floor(tonumber(value) or 0), 0)
-    elseif key == "dryRun" then
-        value = value == true
     else
         return
     end
@@ -225,9 +204,6 @@ local sourceDropdown
 local autoBuyItemInput
 local autoBuyItemSummary
 local autoBuyQuantityInput
-local autoBuyMaxInput
-local autoBuyReserveInput
-local autoBuyDryRun
 
 local function FormatSourceText(name, sourceType)
     if type(name) == "string" and name ~= "" then
@@ -349,6 +325,36 @@ local function CreateModuleToggle(key, label, hint, y)
     return check
 end
 
+local function CreateInlineToggle(key, label, x, y, tooltipText)
+    local check = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
+    check:SetSize(26, 26)
+    check:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
+    check.moduleKey = key
+
+    check.Label = check:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    check.Label:SetPoint("LEFT", check, "RIGHT", 6, 0)
+    check.Label:SetText(label)
+
+    if tooltipText then
+        check:SetScript("OnEnter", function(entered)
+            GameTooltip:SetOwner(entered, "ANCHOR_RIGHT")
+            GameTooltip:SetText(label, 1, 0.82, 0)
+            GameTooltip:AddLine(tooltipText, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        check:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+    end
+
+    check:SetScript("OnClick", function(button)
+        Config:SetEnabled(button.moduleKey, button:GetChecked() and true or false)
+    end)
+
+    toggles[#toggles + 1] = check
+    return check
+end
+
 local function CreateSettingEditBox(parent, y, width, maxLetters, onCommit)
     local editBox = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
     editBox:SetSize(width, 30)
@@ -379,26 +385,13 @@ local function CommitAutoBuyItem(editBox)
     Config:RefreshPanel()
 end
 
-local function CommitAutoBuyLimit(editBox)
-    local value = math.floor(tonumber(editBox:GetText()) or 0)
-    Config:SetAutoBuyOption("maxSpendGold", value)
-    Config:RefreshPanel()
-end
-
 local function CommitAutoBuyQuantity(editBox)
     local value = math.floor(tonumber(editBox:GetText()) or 0)
     Config:SetAutoBuyOption("quantity", value)
     Config:RefreshPanel()
 end
 
-local function CommitAutoBuyReserve(editBox)
-    local value = math.floor(tonumber(editBox:GetText()) or 0)
-    Config:SetAutoBuyOption("reserveSlots", value)
-    Config:RefreshPanel()
-end
-
 local function CreateAutoBuyOptions(y)
-    local settings = Config:GetAutoBuySettings()
     local itemLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     itemLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
     itemLabel:SetText(ns.L.AUTOBUY_SETTING_ITEM)
@@ -416,77 +409,27 @@ local function CreateAutoBuyOptions(y)
     end)
 
     autoBuyItemSummary = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    autoBuyItemSummary:SetPoint("TOPLEFT", autoBuyItemInput, "BOTTOMLEFT", 0, -4)
-    autoBuyItemSummary:SetWidth(520)
+    autoBuyItemSummary:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y - 58)
+    autoBuyItemSummary:SetWidth(250)
     autoBuyItemSummary:SetJustifyH("LEFT")
     autoBuyItemSummary:SetTextColor(0.62, 0.62, 0.62)
 
-    y = y - 86
     local quantityLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    quantityLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
+    quantityLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 285, y)
     quantityLabel:SetText(ns.L.AUTOBUY_SETTING_QUANTITY)
 
     autoBuyQuantityInput = CreateSettingEditBox(page, y - 24, 90, 7, CommitAutoBuyQuantity)
+    autoBuyQuantityInput:ClearAllPoints()
+    autoBuyQuantityInput:SetPoint("TOPLEFT", page, "TOPLEFT", 285, y - 24)
 
     local quantityHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    quantityHint:SetPoint("TOPLEFT", quantityLabel, "BOTTOMLEFT", 0, -34)
-    quantityHint:SetWidth(165)
+    quantityHint:SetPoint("TOPLEFT", page, "TOPLEFT", 285, y - 58)
+    quantityHint:SetWidth(250)
     quantityHint:SetJustifyH("LEFT")
     quantityHint:SetText(ns.L.AUTOBUY_SETTING_QUANTITY_HINT)
     quantityHint:SetTextColor(0.62, 0.62, 0.62)
 
-    local maxLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    maxLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 205, y)
-    maxLabel:SetText(ns.L.AUTOBUY_SETTING_MAX)
-
-    autoBuyMaxInput = CreateSettingEditBox(page, y - 24, 90, 8, CommitAutoBuyLimit)
-    autoBuyMaxInput:ClearAllPoints()
-    autoBuyMaxInput:SetPoint("TOPLEFT", page, "TOPLEFT", 205, y - 24)
-
-    local maxHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    maxHint:SetPoint("TOPLEFT", maxLabel, "BOTTOMLEFT", 0, -34)
-    maxHint:SetWidth(165)
-    maxHint:SetJustifyH("LEFT")
-    maxHint:SetText(ns.L.AUTOBUY_SETTING_MAX_HINT)
-    maxHint:SetTextColor(0.62, 0.62, 0.62)
-
-    local reserveLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    reserveLabel:SetPoint("TOPLEFT", page, "TOPLEFT", 390, y)
-    reserveLabel:SetText(ns.L.AUTOBUY_SETTING_RESERVE)
-
-    autoBuyReserveInput = CreateSettingEditBox(page, y - 24, 90, 4, CommitAutoBuyReserve)
-    autoBuyReserveInput:ClearAllPoints()
-    autoBuyReserveInput:SetPoint("TOPLEFT", page, "TOPLEFT", 390, y - 24)
-
-    local reserveHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    reserveHint:SetPoint("TOPLEFT", reserveLabel, "BOTTOMLEFT", 0, -34)
-    reserveHint:SetWidth(150)
-    reserveHint:SetJustifyH("LEFT")
-    reserveHint:SetText(ns.L.AUTOBUY_SETTING_RESERVE_HINT)
-    reserveHint:SetTextColor(0.62, 0.62, 0.62)
-
-    y = y - 104
-    autoBuyDryRun = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
-    autoBuyDryRun:SetSize(26, 26)
-    autoBuyDryRun:SetPoint("TOPLEFT", page, "TOPLEFT", 16, y)
-    autoBuyDryRun:SetChecked(settings.dryRun)
-
-    autoBuyDryRun.Label = autoBuyDryRun:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    autoBuyDryRun.Label:SetPoint("LEFT", autoBuyDryRun, "RIGHT", 6, 0)
-    autoBuyDryRun.Label:SetText(ns.L.AUTOBUY_SETTING_DRY_RUN)
-
-    autoBuyDryRun.Hint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    autoBuyDryRun.Hint:SetPoint("TOPLEFT", autoBuyDryRun, "BOTTOMLEFT", 30, -2)
-    autoBuyDryRun.Hint:SetWidth(490)
-    autoBuyDryRun.Hint:SetJustifyH("LEFT")
-    autoBuyDryRun.Hint:SetText(ns.L.AUTOBUY_SETTING_DRY_RUN_HINT)
-    autoBuyDryRun.Hint:SetTextColor(0.62, 0.62, 0.62)
-    autoBuyDryRun:SetScript("OnClick", function(button)
-        Config:SetAutoBuyOption("dryRun", button:GetChecked() and true or false)
-        Config:RefreshPanel()
-    end)
-
-    return y - 60
+    return y - 104
 end
 
 function Config:RefreshPanel()
@@ -504,20 +447,8 @@ function Config:RefreshPanel()
         autoBuyItemInput:SetText(settings.itemID > 0 and tostring(settings.itemID) or "")
     end
 
-    if autoBuyMaxInput and not autoBuyMaxInput:HasFocus() then
-        autoBuyMaxInput:SetText(tostring(settings.maxSpendGold))
-    end
-
     if autoBuyQuantityInput and not autoBuyQuantityInput:HasFocus() then
         autoBuyQuantityInput:SetText(tostring(settings.quantity))
-    end
-
-    if autoBuyReserveInput and not autoBuyReserveInput:HasFocus() then
-        autoBuyReserveInput:SetText(tostring(settings.reserveSlots))
-    end
-
-    if autoBuyDryRun then
-        autoBuyDryRun:SetChecked(settings.dryRun)
     end
 
     if autoBuyItemSummary then
@@ -583,10 +514,21 @@ local function BuildPanel()
     y = y - 20
 
     -- 符文石助手
-    CreateModuleToggle("runestone", ns.L.SETTINGS_RUNESTONE, ns.L.SETTINGS_RUNESTONE_HINT, y)
+    CreateInlineToggle("runestone", ns.L.SETTINGS_RUNESTONE, 16, y, ns.L.SETTINGS_RUNESTONE_HINT)
+    CreateInlineToggle(
+        "runestoneAnnounce",
+        ns.L.SETTINGS_RUNESTONE_ANNOUNCE,
+        250,
+        y,
+        ns.L.SETTINGS_RUNESTONE_ANNOUNCE_HINT
+    )
+    local runestoneHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    runestoneHint:SetPoint("TOPLEFT", page, "TOPLEFT", 48, y - 28)
+    runestoneHint:SetWidth(480)
+    runestoneHint:SetJustifyH("LEFT")
+    runestoneHint:SetText(ns.L.SETTINGS_RUNESTONE_COMPACT_HINT)
+    runestoneHint:SetTextColor(0.62, 0.62, 0.62)
     y = y - 54
-    CreateModuleToggle("runestoneAnnounce", ns.L.SETTINGS_RUNESTONE_ANNOUNCE, ns.L.SETTINGS_RUNESTONE_ANNOUNCE_HINT, y)
-    y = y - 50
     CreateSeparator(page, y)
     y = y - 20
 

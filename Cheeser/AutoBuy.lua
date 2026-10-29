@@ -239,7 +239,6 @@ local function GetPurchaseBudget(activeRun)
 
     local step = math.max(info.stackCount, 1)
     local room = BagRoom(activeRun.itemID, activeRun.stackSize)
-        - activeRun.reserveSlots * activeRun.stackSize
     local maxUnits = math.floor(math.max(room, 0) / step) * step
 
     if maxUnits < 1 then
@@ -264,11 +263,6 @@ local function GetPurchaseBudget(activeRun)
     if info.price > 0 then
         local affordableBundles = math.floor(GetMoney() / info.price)
         maxUnits = math.min(maxUnits, affordableBundles * step)
-
-        if activeRun.spendCap > 0 then
-            local remainingCap = math.max(activeRun.spendCap - activeRun.plannedSpend, 0)
-            maxUnits = math.min(maxUnits, math.floor(remainingCap / info.price) * step)
-        end
     end
 
     local extraCostLimit = GetExtraCostLimit(index)
@@ -277,10 +271,6 @@ local function GetPurchaseBudget(activeRun)
     end
 
     if maxUnits < 1 then
-        if info.price > 0 and activeRun.spendCap > 0
-            and activeRun.plannedSpend + info.price > activeRun.spendCap then
-            return 0, ns.L.AUTOBUY_REASON_LIMIT
-        end
         if extraCostLimit == 0 then
             return 0, ns.L.AUTOBUY_REASON_CURRENCY
         end
@@ -357,7 +347,6 @@ local function StepRun()
     end
 
     run.pendingUnits = issuedUnits
-    run.plannedSpend = run.plannedSpend + (info.price or 0) * (issuedUnits / step)
 
     -- 高价、不可退还或货币购买会弹确认框；只在本次自动购买仍待确认时处理。
     for attempt = 1, 20 do
@@ -434,40 +423,11 @@ local function StartRun(itemID, info)
     local settings = GetSettings()
     local stackSize = GetItemStackSize(itemID, info.stackCount)
     local startCount = GetItemCount(itemID)
-    local probe = {
-        itemID = itemID,
-        stackSize = stackSize,
-        quantity = settings.quantity,
-        purchased = 0,
-        reserveSlots = settings.reserveSlots,
-        spendCap = settings.maxSpendGold * 10000,
-        plannedSpend = 0,
-    }
-
-    local maxUnits, reason, index, budgetInfo, purchaseUnits, callUnits, step
-    if settings.dryRun then
-        maxUnits, reason, index, budgetInfo, purchaseUnits, callUnits, step = GetPurchaseBudget(probe)
-
-        if maxUnits > 0 and budgetInfo and step then
-            Print(string.format(
-                ns.L.AUTOBUY_PREVIEW,
-                GetItemLink(itemID),
-                maxUnits,
-                FormatMerchantCost(index, maxUnits, step, budgetInfo)
-            ))
-        else
-            Print(string.format(ns.L.AUTOBUY_PREVIEW_EMPTY, GetItemLink(itemID), reason))
-        end
-        return
-    end
 
     run = {
         itemID = itemID,
         stackSize = stackSize,
         quantity = settings.quantity,
-        reserveSlots = settings.reserveSlots,
-        spendCap = settings.maxSpendGold * 10000,
-        plannedSpend = 0,
         spentCopper = 0,
         purchased = 0,
         lastCount = startCount,
@@ -476,6 +436,7 @@ local function StartRun(itemID, info)
     }
     RefreshMerchantUI()
 
+    local maxUnits, reason, index, budgetInfo, purchaseUnits, callUnits, step
     maxUnits, reason, index, budgetInfo, purchaseUnits, callUnits, step = GetPurchaseBudget(run)
     if maxUnits < 1 or not budgetInfo or not step then
         StopRun(reason)
@@ -557,7 +518,6 @@ function AutoBuy:GetStatusSnapshot()
         stopping = IsStopping(),
         purchased = run and run.purchased or 0,
         merchantOpen = MerchantIsOpen(),
-        dryRun = settings.dryRun,
     }
 
     if snapshot.itemID > 0 then
@@ -594,9 +554,6 @@ function AutoBuy:GetStatusSnapshot()
         stackSize = GetItemStackSize(snapshot.itemID, info.stackCount),
         quantity = settings.quantity,
         purchased = snapshot.purchased,
-        reserveSlots = settings.reserveSlots,
-        spendCap = settings.maxSpendGold * 10000,
-        plannedSpend = 0,
     }
     local maxUnits, reason, _, budgetInfo, _, _, step = GetPurchaseBudget(probe)
     snapshot.maxUnits = maxUnits

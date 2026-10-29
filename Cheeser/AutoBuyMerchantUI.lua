@@ -8,7 +8,6 @@ local panel
 local statusText
 local itemText
 local enabledCheck
-local dryRunCheck
 local pickButton
 local resumeButton
 local fields = {}
@@ -16,8 +15,6 @@ local updateElapsed = 0
 
 local FIELD_DEFINITIONS = {
     { key = "quantity", x = 18, y = -226, width = 78, maxLetters = 7 },
-    { key = "maxSpendGold", x = 118, y = -226, width = 88, maxLetters = 8 },
-    { key = "reserveSlots", x = 228, y = -226, width = 72, maxLetters = 4 },
 }
 
 local function RefreshMerchantPanel()
@@ -37,15 +34,7 @@ local function RefreshMerchantPanel()
     if not fields.quantity:HasFocus() then
         fields.quantity:SetText(tostring(settings.quantity))
     end
-    if not fields.maxSpendGold:HasFocus() then
-        fields.maxSpendGold:SetText(tostring(settings.maxSpendGold))
-    end
-    if not fields.reserveSlots:HasFocus() then
-        fields.reserveSlots:SetText(tostring(settings.reserveSlots))
-    end
-
     enabledCheck:SetChecked(snapshot.enabled)
-    dryRunCheck:SetChecked(settings.dryRun)
 
     for _, field in pairs(fields) do
         field:SetEnabled(not busy)
@@ -54,7 +43,6 @@ local function RefreshMerchantPanel()
     pickButton:SetEnabled(not busy)
     pickButton:SetAlpha(busy and 0.55 or 1)
     enabledCheck:SetEnabled(not busy)
-    dryRunCheck:SetEnabled(not busy)
 
     if snapshot.itemID > 0 then
         itemText:SetText(string.format(
@@ -92,8 +80,6 @@ local function RefreshMerchantPanel()
         resumeButton:SetText(ns.L.AUTOBUY_PANEL_STOPPING_BUTTON)
     elseif running then
         resumeButton:SetText(ns.L.AUTOBUY_PANEL_STOP)
-    elseif settings.dryRun then
-        resumeButton:SetText(ns.L.AUTOBUY_PANEL_PREVIEW_BUTTON)
     else
         resumeButton:SetText(ns.L.AUTOBUY_PANEL_RESUME)
     end
@@ -230,25 +216,16 @@ local function CreatePanel()
     quantityLabel:SetPoint("TOPLEFT", 18, -212)
     quantityLabel:SetText(ns.L.AUTOBUY_SETTING_QUANTITY)
 
-    local maxLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    maxLabel:SetPoint("TOPLEFT", 118, -212)
-    maxLabel:SetText(ns.L.AUTOBUY_SETTING_MAX)
-
-    local reserveLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    reserveLabel:SetPoint("TOPLEFT", 228, -212)
-    reserveLabel:SetText(ns.L.AUTOBUY_SETTING_RESERVE)
-
     for _, definition in ipairs(FIELD_DEFINITIONS) do
         CreateField(panel, definition)
     end
 
-    dryRunCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    dryRunCheck:SetSize(26, 26)
-    dryRunCheck:SetPoint("TOPLEFT", 18, -270)
-
-    local dryRunLabel = dryRunCheck:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    dryRunLabel:SetPoint("LEFT", dryRunCheck, "RIGHT", 6, 0)
-    dryRunLabel:SetText(ns.L.AUTOBUY_SETTING_DRY_RUN)
+    local quantityHint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    quantityHint:SetPoint("TOPLEFT", 18, -258)
+    quantityHint:SetWidth(324)
+    quantityHint:SetJustifyH("LEFT")
+    quantityHint:SetText(ns.L.AUTOBUY_SETTING_QUANTITY_HINT)
+    quantityHint:SetTextColor(0.62, 0.62, 0.62)
 
     local helpText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     helpText:SetPoint("TOPLEFT", 18, -304)
@@ -261,11 +238,6 @@ local function CreatePanel()
         ns.Config:SetEnabled("autoBuy", checked:GetChecked() and true or false)
         RefreshMerchantPanel()
     end)
-    dryRunCheck:SetScript("OnClick", function(checked)
-        ns.Config:SetAutoBuyOption("dryRun", checked:GetChecked() and true or false)
-        RefreshMerchantPanel()
-    end)
-
     resumeButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     resumeButton:SetSize(170, 26)
     resumeButton:SetPoint("BOTTOMLEFT", 18, 18)
