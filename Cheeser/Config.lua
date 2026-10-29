@@ -9,6 +9,7 @@ local DEFAULTS = {
     autoHunt = true,
     runestoneAnnounce = true,
     autoBuy = false,
+    warbandBank = false,
 }
 
 local function IsKnownKey(key)
@@ -141,6 +142,10 @@ function Config:Apply()
 
     if ns.AutoBuy then
         ns.AutoBuy:OnSettingsChanged()
+    end
+
+    if ns.WarbandBank then
+        ns.WarbandBank:OnSettingsChanged()
     end
 
     self:RefreshPanel()
@@ -542,6 +547,17 @@ local function BuildPanel()
     CreateModuleToggle("autoBuy", ns.L.SETTINGS_AUTOBUY, ns.L.SETTINGS_AUTOBUY_HINT, y)
     y = y - 58
     y = CreateAutoBuyOptions(y)
+    CreateSeparator(page, y)
+    y = y - 20
+
+    -- 战团银行自动存放
+    CreateModuleToggle(
+        "warbandBank",
+        ns.L.SETTINGS_WARBAND_BANK,
+        ns.L.SETTINGS_WARBAND_BANK_HINT,
+        y
+    )
+    y = y - 62
     CreateSeparator(page, y)
     y = y - 20
 

@@ -124,6 +124,7 @@ function Addon:OnAddonLoaded(name)
     ns.Talk.Initialize()
     ns.AutoBuy:Initialize()
     ns.AutoBuyMerchantUI:Initialize()
+    ns.WarbandBank:Initialize()
     ns.Config:Apply()
 
     SLASH_CHEESER1 = "/cheeser"

@@ -249,6 +249,23 @@ name（角色名，可能带服务器）、classID、level、zone、presence、r
 - 首位邀请会先校验小队状态，再选择当前列表中首个未在小队中的在线成员
 - 邀请过程中如果队伍状态变化或满员，停止后续队列
 
+## 战团银行自动存放
+
+调研日期：2026-10-29（Asia/Shanghai）
+
+EllesmereUIBags 的“存放战团绑定物品”按钮最终调用：
+
+```lua
+C_Bank.AutoDepositItemsIntoBank(Enum.BankType.Account)
+```
+
+该接口沿用各战团银行分页的收取规则与空位限制，不会绕过银行限制。实现使用 `BANKFRAME_OPENED` 与 `BANKFRAME_CLOSED` 管理单次银行会话：
+
+- 便携战团银行以 `C_PlayerInteractionManager.IsInteractingWithNpcOfType(Enum.PlayerInteractionType.AccountBanker)` 识别。
+- 普通银行 NPC 打开后，监听 EllesmereUIBags 全局银行框 `EUI_BankFrame` 的 `RefreshBank()`，再以 `IsWarbandView()` 判断是否切到战团视图。
+- 调用前检查战斗状态与 `C_Bank.FetchBankLockedReason(Enum.BankType.Account)`。
+- 同一次会话只成功触发一次；关闭银行会取消尚未执行的延迟调用。
+
 ## 仍需在客户端验证
 
 - `GetGuildRosterInfo` 在当前正式服的实际字段顺序

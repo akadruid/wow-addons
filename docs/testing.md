@@ -14,7 +14,7 @@ E:\ai\wow-addons\Cheeser
 D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 ```
 
-目录里应包含 `Cheeser.toc`、`Bindings.xml`、`AutoBuy.lua`、`AutoBuyMerchantUI.lua`、`Config.lua`、`Core.lua`、`Locales.lua`、`MeetingStone.lua`、`Roster.lua`、`Runestone.lua`、`Talk.lua`、`UI.lua`。
+目录里应包含 `Cheeser.toc`、`Bindings.xml`、`AutoBuy.lua`、`AutoBuyMerchantUI.lua`、`Config.lua`、`Core.lua`、`Locales.lua`、`MeetingStone.lua`、`Roster.lua`、`Runestone.lua`、`Talk.lua`、`UI.lua`、`WarbandBank.lua`。
 
 部署前确认插件目录中只有一份 `Cheeser`，移除可能残留的旧目录。
 
@@ -104,7 +104,7 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 ## 商人自动购买
 
 1. 全新安装时 `/che buy` 应显示“尚未选择物品”；填写物品 ID，或点“从背包选择”选择一件背包物品。
-2. 全新安装时购买数量应默认为 `0`；完整设置和商人旁设置窗口都应显示“填 0 表示不设数量上限，持续买到填满背包”。
+2. 全新安装时购买数量应默认为 `0`；完整设置和商人旁设置窗口都应显示“0 = 不限数量，买满即停”。
 3. 设置购买数量为 `3`，手动打开出售该物品的商人；应只购买 3 件后停止。
 4. 将购买数量改为 `0`，重新打开商人；应以批量请求持续购买，直到普通背包和钓鱼袋都没有可用空间。
 5. 对使用其他货币或物品兑换的商人，确认持有量不足时停止，并确认启动提示中的货币数量按“单次兑换成本 × 计划份数”计算。
@@ -116,6 +116,15 @@ D:\game\World of Warcraft\_retail_\Interface\AddOns\Cheeser
 11. 停止后按钮短暂显示 `正在停止...`，随后恢复为 `自动购买`；已提交的当前批次可能继续到账，但不应自动开始下一批。
 12. 模拟一次购买超时或报错后，按钮恢复为 `自动购买`；再次左键应能从当前背包状态继续购买。
 13. 关闭商人后，独立设置窗口应自动关闭；重新打开商人时，快捷按钮重新出现。
+
+## 战团银行自动存放
+
+1. 保持“自动存放战团绑定物品”开启，背包中准备可存入战团银行的战团绑定物品。
+2. 通过便携战团银行打开 EllesmereUIBags 银行窗口；约半秒后应自动执行一次存放。
+3. 在普通银行 NPC 处打开银行，再切换到“OneWarbank / All Warbank Tabs / 任一战团分页”；应自动执行一次存放。
+4. 同一次银行会话中来回切换角色银行与战团银行视图，不应重复执行。
+5. 关闭“自动存放战团绑定物品”后重新打开战团银行，不应触发存放。
+6. 战斗中打开银行不应报错；离开战斗后可重新打开银行验证。
 
 ## 代码改动后的测试
 
