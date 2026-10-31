@@ -55,6 +55,12 @@ local function IsChatLockedDown()
     return false
 end
 
+local function IsUsableGUID(guid)
+    return type(guid) == "string"
+        and guid ~= ""
+        and not (issecretvalue and issecretvalue(guid))
+end
+
 local function ShortName(fullName)
     if Ambiguate then
         return Ambiguate(fullName, "short")
@@ -511,6 +517,66 @@ function Roster:GetFirstEligibleMember()
     end
 
     return nil
+end
+
+-- 自动接受邀请时按 GUID 校验邀请人，避免跨服同名角色误触发。
+function Roster:IsGuildMemberGUID(guid)
+    if not IsUsableGUID(guid) or not IsInGuild() then
+        return false
+    end
+
+    if type(GetNumGuildMembers) ~= "function" or type(GetGuildRosterInfo) ~= "function" then
+        return false
+    end
+
+    local ok, isMember = pcall(function()
+        local total = GetNumGuildMembers() or 0
+        for index = 1, total do
+            local memberGUID = select(16, GetGuildRosterInfo(index))
+            if IsUsableGUID(memberGUID) and memberGUID == guid then
+                return true
+            end
+        end
+        return false
+    end)
+
+    return ok and isMember and true or false
+end
+
+function Roster:IsCommunityMemberGUID(clubId, guid)
+    if not IsUsableGUID(guid)
+        or type(clubId) ~= "string"
+        or clubId == ""
+        or not (C_Club and type(C_Club.GetClubMembers) == "function" and type(C_Club.GetMemberInfo) == "function")
+        or IsChatLockedDown() then
+        return false
+    end
+
+    local ok, memberIds = pcall(C_Club.GetClubMembers, clubId)
+    if not ok or type(memberIds) ~= "table" or (issecretvalue and issecretvalue(memberIds)) then
+        return false
+    end
+
+    for _, memberId in ipairs(memberIds) do
+        local infoOk, memberInfo = pcall(C_Club.GetMemberInfo, clubId, memberId)
+        if infoOk and type(memberInfo) == "table" and not (issecretvalue and issecretvalue(memberInfo)) then
+            local memberGUID = memberInfo.guid
+            if IsUsableGUID(memberGUID) and memberGUID == guid then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- 自动接受与手动邀请共用同一个来源设置。
+function Roster:IsInviterFromCurrentSource(guid)
+    local kind, clubId = self:GetSource()
+    if kind == "club" then
+        return self:IsCommunityMemberGUID(clubId, guid)
+    end
+    return self:IsGuildMemberGUID(guid)
 end
 
 -- 邀请跨服（连接服）公会成员时，短名可能触发“无法邀请该服务器的玩家”。

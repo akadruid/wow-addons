@@ -37,6 +37,8 @@
 | 判断成员是否已在队伍 | `C_PartyInfo.IsGUIDInGroup(guid[, category])` | 用于禁用已在小队中的公会成员 |
 | 监听名册变化 | `GUILD_ROSTER_UPDATE(canRequestRosterUpdate)` | 名册数据变化后刷新 |
 | 监听小队变化 | `GROUP_ROSTER_UPDATE` | 队伍创建、解散、加入或离开时刷新 |
+| 接收组队邀请 | `PARTY_INVITE_REQUEST` | 第 7 个参数为邀请人的 `inviterGUID` |
+| 接受组队邀请 | `AcceptGroup()` | 接受当前组队邀请；成功后清理残留的原生邀请弹窗 |
 | 显示快捷键 | `GetBindingKey(command)` | 返回命令当前绑定的按键，可能返回多个值 |
 | 查询当前 Vignette | `C_VignetteInfo.GetVignettes()` | 返回当前客户端和位面的 Vignette GUID |
 | 读取 Vignette 详情 | `C_VignetteInfo.GetVignetteInfo(vignetteGUID)` | 返回 Vignette ID、名称、存活状态和地图标记信息 |
@@ -173,6 +175,22 @@ C_GuildInfo.GuildRoster()
 - 保留暴雪原生确认框
 - 不绕过队伍同步提示
 - 不绕过转团队提示
+
+## 自动接受邀请
+
+`PARTY_INVITE_REQUEST` 的调用参数顺序为：
+
+```lua
+name, tank, healer, damage, isXRealm, allowMultipleRoles, inviterGUID, isQuestSessionActive
+```
+
+自动接受功能使用第 7 个参数 `inviterGUID` 校验邀请人，不按角色短名匹配，避免跨服同名角色误触发。来源校验与手动邀请完全一致：
+
+- 来源为当前角色公会时，遍历公会名册的 GUID。
+- 来源为角色社区时，遍历所选社区成员的 GUID。
+- 无法取得普通 GUID、社区成员数据处于聊天锁定状态或来源数据不可用时，不自动接受，保留原生邀请弹窗。
+
+成员校验通过后调用原生 `AcceptGroup()`。只有随后收到 `GROUP_ROSTER_UPDATE`、确认已进入队伍时，才在下一帧清理可能残留的 `PARTY_INVITE` / `PARTY_INVITE_XREALM` 弹窗；接受失败时保留原生界面。
 
 ## 为什么不把 C_Club 作为第一版主数据源
 

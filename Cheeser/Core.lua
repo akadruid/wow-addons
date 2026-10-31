@@ -99,6 +99,31 @@ function Addon:LeavePartyWithoutConfirmation()
     self:Print(ns.L.LEAVE_PARTY_DONE)
 end
 
+function Addon:HidePartyInvitePopup()
+    if type(StaticPopup_Hide) == "function" then
+        StaticPopup_Hide("PARTY_INVITE")
+        StaticPopup_Hide("PARTY_INVITE_XREALM")
+    end
+end
+
+function Addon:TryAutoAcceptInvite(inviterGUID)
+    if not ns.Config:IsEnabled("guildInvite") or not ns.Config:IsEnabled("autoAcceptInvite") then
+        return
+    end
+    if type(AcceptGroup) ~= "function" or not ns.Roster:IsInviterFromCurrentSource(inviterGUID) then
+        return
+    end
+
+    local popupToken = {}
+    self.autoAcceptPopupToken = popupToken
+    C_Timer.After(5, function()
+        if self.autoAcceptPopupToken == popupToken then
+            self.autoAcceptPopupToken = nil
+        end
+    end)
+    AcceptGroup()
+end
+
 function Addon:OnAddonLoaded(name)
     if name ~= ADDON_NAME then
         return
@@ -112,6 +137,7 @@ function Addon:OnAddonLoaded(name)
     self:RegisterEvent("GUILD_ROSTER_UPDATE")
     self:RegisterEvent("GROUP_ROSTER_UPDATE")
     self:RegisterEvent("PLAYER_GUILD_UPDATE")
+    self:RegisterEvent("PARTY_INVITE_REQUEST")
     self:RegisterEvent("UPDATE_BINDINGS")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     self:RegisterEvent("GOSSIP_SHOW")
@@ -218,10 +244,18 @@ function Addon:OnEvent(event, ...)
         end
         self:RefreshAll(false)
     elseif event == "GROUP_ROSTER_UPDATE" then
+        if self.autoAcceptPopupToken then
+            self.autoAcceptPopupToken = nil
+            C_Timer.After(0, function()
+                self:HidePartyInvitePopup()
+            end)
+        end
         self:RefreshAll(false)
         self:ScheduleRunestoneAutoCheck()
     elseif event == "PLAYER_GUILD_UPDATE" then
         self:RefreshAll(false)
+    elseif event == "PARTY_INVITE_REQUEST" then
+        self:TryAutoAcceptInvite(select(7, ...))
     elseif event == "ZONE_CHANGED_NEW_AREA" then
         self:ScheduleRunestoneAutoCheck()
     elseif event == "UPDATE_BINDINGS" then

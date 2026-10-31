@@ -5,6 +5,7 @@ ns.Config = Config
 
 local DEFAULTS = {
     guildInvite = true,
+    autoAcceptInvite = false,
     runestone = true,
     autoHunt = true,
     runestoneAnnounce = true,
@@ -515,6 +516,14 @@ local function BuildPanel()
     y = y - 62
     CreateSourceRow(y)
     y = y - 52
+    CreateInlineToggle(
+        "autoAcceptInvite",
+        ns.L.SETTINGS_AUTO_ACCEPT_INVITE,
+        16,
+        y,
+        ns.L.SETTINGS_AUTO_ACCEPT_INVITE_HINT
+    )
+    y = y - 44
     CreateSeparator(page, y)
     y = y - 20
 
