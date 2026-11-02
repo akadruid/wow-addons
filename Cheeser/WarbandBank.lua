@@ -8,7 +8,8 @@ local bankOpen = false
 local bankSession = 0
 local depositScheduled = false
 local depositDone = false
-local refreshHooked = false
+local portableAccountBank = false
+local bankTypeTicker
 
 local function IsPortableAccountBank()
     local manager = C_PlayerInteractionManager
@@ -21,21 +22,47 @@ local function IsPortableAccountBank()
         or false
 end
 
-local function IsEllesmereWarbandViewVisible()
-    local bankFrame = _G.EUI_BankFrame
-    return bankFrame
-        and type(bankFrame.IsVisible) == "function"
-        and type(bankFrame.IsWarbandView) == "function"
-        and bankFrame:IsVisible()
-        and bankFrame:IsWarbandView()
-        or false
+local function GetActiveBankType()
+    local genericGetter = _G.Addon_GetBankType
+    if type(genericGetter) == "function" then
+        local ok, bankType = pcall(genericGetter)
+        if ok and bankType ~= nil then
+            return bankType
+        end
+    end
+
+    local bankFrame = _G.BankFrame
+    if bankFrame and type(bankFrame.GetActiveBankType) == "function" then
+        local ok, bankType = pcall(bankFrame.GetActiveBankType, bankFrame)
+        if ok then
+            return bankType
+        end
+    end
+
+    return nil
+end
+
+local function IsWarbandBankActive()
+    if portableAccountBank then
+        return true
+    end
+
+    local bankType = Enum and Enum.BankType and Enum.BankType.Account
+    return bankType ~= nil and GetActiveBankType() == bankType
+end
+
+local function StopBankTypePolling()
+    if bankTypeTicker then
+        bankTypeTicker:Cancel()
+        bankTypeTicker = nil
+    end
 end
 
 local function CanDeposit()
     if not bankOpen
         or depositDone
         or not ns.Config:IsEnabled("warbandBank")
-        or not IsEllesmereWarbandViewVisible() then
+        or not IsWarbandBankActive() then
         return false
     end
 
@@ -47,6 +74,16 @@ local function CanDeposit()
     if not bankType
         or not C_Bank
         or type(C_Bank.AutoDepositItemsIntoBank) ~= "function" then
+        return false
+    end
+
+    if type(C_Bank.CanUseBank) == "function"
+        and not C_Bank.CanUseBank(bankType) then
+        return false
+    end
+
+    if type(C_Bank.DoesBankTypeSupportAutoDeposit) == "function"
+        and not C_Bank.DoesBankTypeSupportAutoDeposit(bankType) then
         return false
     end
 
@@ -69,6 +106,7 @@ local function TryDeposit()
     )
     if ok then
         depositDone = true
+        StopBankTypePolling()
         ns.Addon:Print(ns.L.WARBAND_BANK_DEPOSIT_TRIGGERED)
     end
     return ok
@@ -108,23 +146,27 @@ local function ScheduleDeposit()
     end)
 end
 
-local function InstallEllesmereHook()
-    if refreshHooked then
+local function CheckBankType()
+    if not bankOpen
+        or depositDone
+        or not ns.Config:IsEnabled("warbandBank") then
+        StopBankTypePolling()
         return
     end
 
-    local bankFrame = _G.EUI_BankFrame
-    if not bankFrame or type(bankFrame.RefreshBank) ~= "function" then
+    if IsWarbandBankActive() then
+        ScheduleDeposit()
+    end
+end
+
+local function StartBankTypePolling()
+    if bankTypeTicker or not bankOpen then
         return
     end
 
-    local ok = pcall(hooksecurefunc, bankFrame, "RefreshBank", function()
-        if bankOpen and IsEllesmereWarbandViewVisible() then
-            ScheduleDeposit()
-        end
-    end)
-    if ok then
-        refreshHooked = true
+    CheckBankType()
+    if bankOpen and not depositDone and ns.Config:IsEnabled("warbandBank") then
+        bankTypeTicker = C_Timer.NewTicker(0.5, CheckBankType)
     end
 end
 
@@ -133,17 +175,18 @@ local function OnBankOpened()
     bankSession = bankSession + 1
     depositScheduled = false
     depositDone = false
+    portableAccountBank = IsPortableAccountBank()
 
-    if IsPortableAccountBank() or IsEllesmereWarbandViewVisible() then
-        ScheduleDeposit()
-    end
+    StartBankTypePolling()
 end
 
 local function OnBankClosed()
+    StopBankTypePolling()
     bankOpen = false
     bankSession = bankSession + 1
     depositScheduled = false
     depositDone = false
+    portableAccountBank = false
 end
 
 function WarbandBank:Initialize()
@@ -152,26 +195,23 @@ function WarbandBank:Initialize()
     end
 
     self.initialized = true
-    eventFrame:RegisterEvent("ADDON_LOADED")
-    eventFrame:RegisterEvent("PLAYER_LOGIN")
     eventFrame:RegisterEvent("BANKFRAME_OPENED")
     eventFrame:RegisterEvent("BANKFRAME_CLOSED")
-    eventFrame:SetScript("OnEvent", function(_, event, addonName)
+    eventFrame:SetScript("OnEvent", function(_, event)
         if event == "BANKFRAME_OPENED" then
             OnBankOpened()
         elseif event == "BANKFRAME_CLOSED" then
             OnBankClosed()
-        elseif event == "ADDON_LOADED" and addonName == "EllesmereUIBags" then
-            InstallEllesmereHook()
-        elseif event == "PLAYER_LOGIN" then
-            InstallEllesmereHook()
         end
     end)
 end
 
 function WarbandBank:OnSettingsChanged()
     if not ns.Config:IsEnabled("warbandBank") then
+        StopBankTypePolling()
         bankSession = bankSession + 1
         depositScheduled = false
+    elseif bankOpen then
+        StartBankTypePolling()
     end
 end

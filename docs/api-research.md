@@ -280,9 +280,10 @@ C_Bank.AutoDepositItemsIntoBank(Enum.BankType.Account)
 该接口沿用各战团银行分页的收取规则与空位限制，不会绕过银行限制。实现使用 `BANKFRAME_OPENED` 与 `BANKFRAME_CLOSED` 管理单次银行会话：
 
 - 便携战团银行以 `C_PlayerInteractionManager.IsInteractingWithNpcOfType(Enum.PlayerInteractionType.AccountBanker)` 识别。
-- 普通银行 NPC 打开后，监听 EllesmereUIBags 全局银行框 `EUI_BankFrame` 的 `RefreshBank()`，再以 `IsWarbandView()` 判断是否切到战团视图。
-- 调用前检查战斗状态与 `C_Bank.FetchBankLockedReason(Enum.BankType.Account)`。
-- 同一次会话只成功触发一次；关闭银行会取消尚未执行的延迟调用。
+- 普通银行没有“当前银行类型”公开查询接口或切页事件；优先读取第三方银行 UI 通用的 `Addon_GetBankType()`，不可用时回退到暴雪原生的 `BankFrame:GetActiveBankType()`。
+- 银行打开期间每 0.5 秒检查一次当前银行类型，检测到 `Enum.BankType.Account` 后触发；角色银行页不会触发。
+- 调用前检查 `C_Bank.CanUseBank()`、`C_Bank.DoesBankTypeSupportAutoDeposit()`、银行锁定状态与战斗状态。
+- 同一次会话只成功触发一次；关闭银行会取消轮询及尚未执行的延迟调用。
 
 ## 仍需在客户端验证
 
